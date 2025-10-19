@@ -1,0 +1,17 @@
+{
+  "name": "bookshop",
+  "version": "1.0.0",
+  "description": "A simple CAP project.",
+  "dependencies": {
+    "@sap/cds": "^9",
+    "cds-softdelete-plugin": "file:../../.",
+    "express": "^4"
+  },
+  "devDependencies": {
+    "@cap-js/sqlite": "^2"
+  },
+  "scripts": {
+    "start": "cds-serve"
+  },
+  "private": true
+}

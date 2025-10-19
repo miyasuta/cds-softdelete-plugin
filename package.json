@@ -1,0 +1,12 @@
+{
+  "name": "soft-delete-plugin",
+  "version": "1.0.0",
+  "main": "cds-plugin.js",
+  "files": [
+    "cds-plugin.js",
+    "index.cds"
+  ],
+  "peerDependencies": {
+    "@sap/cds": ">=9"
+  }
+}
