@@ -1,5 +1,42 @@
 const cds = require('@sap/cds')
 
+// Initialize logger
+const LOG = cds.log('soft-delete')
+const DEBUG_MODE = process.env.DEBUG_SOFTDELETE === 'true'
+
+/**
+ * Recursively checks if 'isDeleted' field is referenced in a CQN where clause
+ * @param {Array} where - CQN where clause array
+ * @returns {boolean} - true if isDeleted is found
+ */
+function hasIsDeletedInWhere(where) {
+    if (!where || !Array.isArray(where)) return false
+
+    for (let i = 0; i < where.length; i++) {
+        const element = where[i]
+
+        // Check ref elements (e.g., { ref: ['isDeleted'] })
+        if (element?.ref) {
+            const ref = Array.isArray(element.ref) ? element.ref : [element.ref]
+            if (ref[0] === 'isDeleted' || ref.some(r => r === 'isDeleted')) {
+                return true
+            }
+        }
+
+        // Recursively check nested arrays
+        if (Array.isArray(element) && hasIsDeletedInWhere(element)) {
+            return true
+        }
+
+        // Check xpr (expression) elements
+        if (element?.xpr && hasIsDeletedInWhere(element.xpr)) {
+            return true
+        }
+    }
+
+    return false
+}
+
 /**
  * Soft Delete Plugin for CDS Services
  *
@@ -11,7 +48,7 @@ const cds = require('@sap/cds')
  * - Allows explicit querying of deleted records by including isDeleted in the filter
  */
 cds.once('loaded', () => {
-    console.log('Soft Delete Plugin: ready')
+    LOG.info('Soft Delete Plugin: ready')
 })
 
 cds.once('served', () => {
@@ -27,16 +64,15 @@ cds.once('served', () => {
             .map(([name]) => name)
 
         if (!targets.length) continue
-        console.log(`Soft Delete Plugin: enabling soft delete for entities: ${targets.join(', ')}`)
+        LOG.info(`Enabling soft delete for entities: ${targets.join(', ')}`)
 
         srv.prepend(() => {
             // Automatically filter out soft-deleted records on READ
             srv.before('READ', targets, (req) => {
                 // Check if isDeleted is already specified in the query filter
                 const whereClause = req.query?.SELECT?.where
-                const hasIsDeletedFilter = whereClause && JSON.stringify(whereClause).includes('isDeleted')
 
-                if (!hasIsDeletedFilter) {
+                if (!hasIsDeletedInWhere(whereClause)) {
                     // Add isDeleted = false to the filter to exclude soft-deleted records
                     if (!req.query.SELECT.where) {
                         req.query.SELECT.where = [{ ref: ['isDeleted'] }, '=', { val: false }]
@@ -48,13 +84,13 @@ cds.once('served', () => {
                             { ref: ['isDeleted'] }, '=', { val: false }
                         ]
                     }
-                    console.log(`Soft Delete Plugin: filtering out soft deleted records`)
+                    if (DEBUG_MODE) LOG.debug('Filtering out soft deleted records')
                 }
             })
 
             // Intercept DELETE requests and perform soft delete instead of physical delete
             srv.on('DELETE', targets, async(req) => {
-                console.log(`Soft Delete Plugin: soft deleting from ${req.target.name}`)
+                LOG.info(`Soft deleting from ${req.target.name}`)
 
                 // Set isDeleted=true and deletedAt=timestamp instead of physically deleting
                 const now = new Date().toISOString()
