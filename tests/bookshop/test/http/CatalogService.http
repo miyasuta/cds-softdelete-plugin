@@ -5,7 +5,7 @@
 
 ### Books
 # @name Books_GET
-GET {{server}}/odata/v4/catalog/Books
+GET {{server}}/odata/v4/catalog/Books?$filter=isDeleted eq true
 Authorization: Basic {{username}}:{{password}}
 
 

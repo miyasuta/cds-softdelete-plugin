@@ -11,7 +11,7 @@ Authorization: Basic {{username}}:{{password}}
 
 ### Books Drafts GET
 # @name Books_Drafts_GET
-GET {{server}}/odata/v4/catalog-draft/Books?$filter=(IsActiveEntity eq false)
+GET {{server}}/odata/v4/catalog-draft/Books?$filter=isDeleted eq true
 Authorization: Basic {{username}}:{{password}}
 
 
@@ -64,3 +64,6 @@ Content-Type: application/json
 Authorization: Basic {{username}}:{{password}}
 
 {}
+
+###
+DELETE {{server}}/odata/v4/catalog-draft/Books(ID={{draftID}},IsActiveEntity=true)
