@@ -1,0 +1,111 @@
+@server=http://localhost:4004
+@username=alice
+@password=
+
+
+### Orders
+# @name Orders_GET
+GET {{server}}/odata/v4/order/Orders
+Authorization: Basic {{username}}:{{password}}
+
+
+### Orders
+# @name Orders_POST
+POST {{server}}/odata/v4/order/Orders
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+{
+  "ID": "87734449-faa3-4a7c-b46d-440dd20e5a97",
+  "createdAt": "2016-10-19T15:00:00.000Z",
+  "total": 8470896.35,
+  "items": [
+    {
+      "ID": "19976719-d114-498c-a9e4-2b455c2d91a9",
+      "quantity": 44,
+      "isDeleted": false,
+      "deletedAt": "2015-11-24T15:00:00.000Z"
+    },
+    {
+      "ID": "19976729-a324-4041-a4de-f5bed2f9b700",
+      "quantity": 24,
+      "isDeleted": true,
+      "deletedAt": "2014-02-23T15:00:00.000Z"
+    }
+  ]
+}
+
+
+### Orders
+# @name Orders_PATCH
+PATCH {{server}}/odata/v4/order/Orders/87734449-faa3-4a7c-b46d-440dd20e5a97
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+{
+  "ID": "87734449-faa3-4a7c-b46d-440dd20e5a97",
+  "createdAt": "2016-10-19T15:00:00.000Z",
+  "total": 8470896.35,
+  "items": [
+    {
+      "ID": "19976719-d114-498c-a9e4-2b455c2d91a9",
+      "quantity": 44,
+      "isDeleted": false,
+      "deletedAt": "2015-11-24T15:00:00.000Z"
+    },
+    {
+      "ID": "19976729-a324-4041-a4de-f5bed2f9b700",
+      "quantity": 24,
+      "isDeleted": true,
+      "deletedAt": "2014-02-23T15:00:00.000Z"
+    }
+  ]
+}
+
+
+### Orders
+# @name Orders_DELETE
+DELETE {{server}}/odata/v4/order/Orders/87734449-faa3-4a7c-b46d-440dd20e5a97
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+
+### OrderItems
+# @name OrderItems_GET
+GET {{server}}/odata/v4/order/OrderItems
+Authorization: Basic {{username}}:{{password}}
+
+
+### OrderItems
+# @name OrderItems_POST
+POST {{server}}/odata/v4/order/OrderItems
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+{
+  "ID": "19976719-d114-498c-a9e4-2b455c2d91a9",
+  "quantity": 44,
+  "isDeleted": false,
+  "deletedAt": "2015-11-24T15:00:00.000Z"
+}
+
+
+### OrderItems
+# @name OrderItems_PATCH
+PATCH {{server}}/odata/v4/order/OrderItems/19976719-d114-498c-a9e4-2b455c2d91a9
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+{
+  "ID": "19976719-d114-498c-a9e4-2b455c2d91a9",
+  "quantity": 44,
+  "isDeleted": false,
+  "deletedAt": "2015-11-24T15:00:00.000Z"
+}
+
+
+### OrderItems
+# @name OrderItems_DELETE
+DELETE {{server}}/odata/v4/order/OrderItems/19976719-d114-498c-a9e4-2b455c2d91a9
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}

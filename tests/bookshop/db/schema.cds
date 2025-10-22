@@ -6,3 +6,16 @@ entity Books: softdelete {
       title : String;
       stock : Integer;
 }
+
+entity Orders {
+  key ID        : UUID;
+      createdAt : DateTime;
+      total     : Decimal(9,2);
+      items     : Composition of many OrderItems on items.order = $self;
+}
+
+entity OrderItems: softdelete {
+  key ID      : UUID;
+      order   : Association to Orders;
+      quantity: Integer;
+}
