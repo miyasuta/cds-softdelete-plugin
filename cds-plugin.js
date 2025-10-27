@@ -94,7 +94,7 @@ cds.once('served', () => {
 
                 // Set isDeleted=true and deletedAt=timestamp instead of physically deleting
                 const now = new Date().toISOString()
-                const u = UPDATE (req.target).set({ isDeleted: true, deletedAt: now }).where(req.data)
+                const u = UPDATE (req.target).set({ isDeleted: true, deletedAt: now, deletedBy: req.user.id }).where(req.data)
 
                 if (req.query?.DELETE?.where) {
                     u.where(req.query.DELETE.where)

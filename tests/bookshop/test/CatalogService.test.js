@@ -33,7 +33,7 @@ describe('CatalogService - Soft Delete Tests', () => {
     expect(normalGetFailed).to.be.true
 
     // Verify it CAN be retrieved when filtering with isDeleted=true
-    const { data: deletedGet } = await GET(`/odata/v4/catalog/Books?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20999&$select=ID,title,isDeleted,deletedAt`)
+    const { data: deletedGet } = await GET(`/odata/v4/catalog/Books?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20999&$select=ID,title,isDeleted,deletedAt,deletedBy`)
     expect(deletedGet.value).to.have.lengthOf(1)
 
     const deletedBook = deletedGet.value[0]
@@ -46,6 +46,10 @@ describe('CatalogService - Soft Delete Tests', () => {
     // Verify deletedAt is set and is a valid timestamp
     expect(deletedBook.deletedAt).to.exist
     expect(deletedBook.deletedAt).to.be.a('string')
+
+    // Verify deletedBy is set and is the authenticated user
+    expect(deletedBook.deletedBy).to.exist
+    expect(deletedBook.deletedBy).to.equal('alice')
 
     // Verify deletedAt is a recent timestamp (within last minute)
     const deletedAtTime = new Date(deletedBook.deletedAt).getTime()
