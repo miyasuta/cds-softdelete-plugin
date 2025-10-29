@@ -2,7 +2,6 @@ const cds = require('@sap/cds')
 
 // Initialize logger
 const LOG = cds.log('soft-delete')
-const DEBUG_MODE = process.env.DEBUG_SOFTDELETE === 'true'
 
 /**
  * Recursively checks if 'isDeleted' field is referenced in a CQN where clause
@@ -38,6 +37,63 @@ function hasIsDeletedInWhere(where) {
 }
 
 /**
+ * Recursively adds isDeleted filter to all expanded columns that target soft-delete enabled entities
+ * @param {Array} columns - CQN columns array
+ * @param {Object} entity - Current entity definition
+ * @param {Array} softDeleteTargets - List of soft-delete enabled entity names
+ */
+function addIsDeletedFilterToExpands(columns, entity, softDeleteTargets) {
+    if (!columns || !Array.isArray(columns)) return
+
+    for (let col of columns) {
+        // Skip non-object columns (like '*' or simple strings)
+        if (typeof col !== 'object' || !col.ref) continue
+
+        // If this column has an expand property
+        if (col.expand) {
+            // Get the association/composition target entity name
+            const refName = Array.isArray(col.ref) ? col.ref[0] : col.ref
+            const element = entity?.elements?.[refName]
+
+            if (!element) continue
+
+            // Get target entity name from association/composition
+            const targetEntityName = element.target
+
+            // Check if target entity is soft-delete enabled
+            // Support both short name (e.g., "OrderItems") and full name (e.g., "OrderService.OrderItems")
+            const shortName = targetEntityName?.split('.').pop()
+            const isSoftDeleteEnabled = targetEntityName && (
+                softDeleteTargets.includes(targetEntityName) ||
+                softDeleteTargets.includes(shortName)
+            )
+
+            if (isSoftDeleteEnabled) {
+                // Add infix where clause to the expanded column
+                if (!col.where) {
+                    col.where = [{ ref: ['isDeleted'] }, '=', { val: false }]
+                } else if (!hasIsDeletedInWhere(col.where)) {
+                    // Combine with existing where clause if isDeleted not already specified
+                    col.where = [
+                        '(', ...col.where, ')',
+                        'and',
+                        { ref: ['isDeleted'] }, '=', { val: false }
+                    ]
+                }
+            }
+
+            // Recursively process nested expands
+            if (Array.isArray(col.expand) && element && targetEntityName) {
+                const targetEntity = cds.model.definitions[targetEntityName]
+                if (targetEntity) {
+                    addIsDeletedFilterToExpands(col.expand, targetEntity, softDeleteTargets)
+                }
+            }
+        }
+    }
+}
+
+/**
  * Soft Delete Plugin for CDS Services
  *
  * This plugin provides soft delete functionality for entities annotated with @softdelete.enabled
@@ -67,7 +123,7 @@ cds.once('served', () => {
         LOG.info(`Enabling soft delete for entities: ${targets.join(', ')}`)
 
         srv.prepend(() => {
-            // Automatically filter out soft-deleted records on READ
+            // Automatically filter out soft-deleted records on READ for soft-delete enabled entities
             srv.before('READ', targets, (req) => {
                 // Check if isDeleted is already specified in the query filter
                 const whereClause = req.query?.SELECT?.where
@@ -84,7 +140,17 @@ cds.once('served', () => {
                             { ref: ['isDeleted'] }, '=', { val: false }
                         ]
                     }
-                    if (DEBUG_MODE) LOG.debug('Filtering out soft deleted records')
+                    LOG.debug('Filtering out soft deleted records')
+                }
+            })
+
+            // Add isDeleted filter to expanded navigations for ALL entities
+            // This handles cases where a non-soft-delete entity expands a soft-delete entity
+            srv.before('READ', '*', (req) => {
+                const columns = req.query?.SELECT?.columns
+                if (columns) {
+                    const entity = req.target
+                    addIsDeletedFilterToExpands(columns, entity, targets)
                 }
             })
 
