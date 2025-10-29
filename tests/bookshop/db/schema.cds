@@ -7,7 +7,7 @@ entity Books: softdelete {
       stock : Integer;
 }
 
-entity Orders {
+entity Orders: softdelete {
   key ID        : UUID;
       createdAt : DateTime;
       total     : Decimal(9,2);
