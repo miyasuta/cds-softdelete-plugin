@@ -200,9 +200,14 @@ function addIsDeletedFilterToExpands(columns, entity, softDeleteTargets, parentI
             )
 
             // Check if this is a composition relationship
+            // Composition: parent owns children (e.g., Order -> OrderItems)
+            // Association: independent relationship (e.g., Book -> Author)
             const isComposition = element.type === 'cds.Composition'
 
             // Determine if we should add/propagate isDeleted filter
+            // Filter is added if:
+            // 1. Target has soft delete fields (isDeleted, deletedAt), AND
+            // 2. Target is soft-delete enabled OR is a composition child
             const shouldAddFilter = hasSoftDeleteFields && (isSoftDeleteEnabled || isComposition)
 
             if (shouldAddFilter) {
@@ -210,24 +215,32 @@ function addIsDeletedFilterToExpands(columns, entity, softDeleteTargets, parentI
                 let isDeletedValue = false // default
 
                 if (isComposition && parentIsDeletedValue !== null) {
-                    // For compositions, propagate parent's isDeleted filter value
+                    // For compositions: propagate parent's isDeleted filter value
+                    // Example: If parent has isDeleted=true, children also get isDeleted=true filter
+                    // This ensures deleted orders only show deleted items in $expand
                     isDeletedValue = parentIsDeletedValue
                 } else if (isSoftDeleteEnabled) {
-                    // For soft-delete enabled entities, use false by default
+                    // For soft-delete enabled entities: use false by default
+                    // This filters out soft-deleted records unless explicitly requested
                     isDeletedValue = false
                 }
 
                 // Add infix where clause to the expanded column
                 if (!col.where) {
+                    // No existing filter: add isDeleted filter
                     col.where = [{ ref: ['isDeleted'] }, '=', { val: isDeletedValue }]
                 } else if (!hasIsDeletedInWhere(col.where)) {
-                    // Combine with existing where clause if isDeleted not already specified
+                    // Existing filter without isDeleted: combine with AND
+                    // Example: $expand=items($filter=quantity gt 5) becomes
+                    //          $expand=items($filter=(quantity gt 5) AND isDeleted=false)
                     col.where = [
                         '(', ...col.where, ')',
                         'and',
                         { ref: ['isDeleted'] }, '=', { val: isDeletedValue }
                     ]
                 }
+                // If isDeleted is already in the filter, respect user's explicit filter
+                // Example: $expand=items($filter=isDeleted eq true) is not modified
             }
 
             // Recursively process nested expands

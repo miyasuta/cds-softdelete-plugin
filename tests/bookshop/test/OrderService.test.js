@@ -5,7 +5,7 @@ axios.defaults.auth = { username: 'alice', password: '' }
 
 describe('OrderService - Soft Delete Tests for Child Entity', () => {
 
-  it('should physically delete OrderItem when deleted directly (no @softdelete.enabled on child)', async () => {
+  it('should soft delete OrderItem when deleted directly (with @softdelete.enabled)', async () => {
     // Create a new Order
     const newOrder = {
       ID: '12345678-1234-1234-1234-123456789abc',
@@ -37,18 +37,18 @@ describe('OrderService - Soft Delete Tests for Child Entity', () => {
     const { data: orderBefore } = await GET(`/odata/v4/order/Orders(12345678-1234-1234-1234-123456789abc)?$expand=items`)
     expect(orderBefore.items).to.have.lengthOf(2)
 
-    // Delete the first OrderItem directly (should be physical delete, not soft delete)
+    // Delete the first OrderItem directly (should be soft delete with @softdelete.enabled)
     const deleteResponse = await DELETE(`/odata/v4/order/OrderItems(87654321-4321-4321-4321-cba987654321)`)
     expect(deleteResponse.status).to.equal(204)
 
-    // Verify only one item remains
+    // Verify only one active item remains (soft-deleted item is filtered out)
     const { data: orderAfter } = await GET(`/odata/v4/order/Orders(12345678-1234-1234-1234-123456789abc)?$expand=items`)
     expect(orderAfter.items).to.have.lengthOf(1)
     expect(orderAfter.items[0]).to.containSubset({
       ID: '11111111-2222-3333-4444-555555555555'
     })
 
-    // Verify deleted item is NOT found (physical delete)
+    // Verify deleted item is NOT found in normal query (soft deleted, so filtered out)
     let normalGetFailed = false
     try {
       await GET(`/odata/v4/order/OrderItems(87654321-4321-4321-4321-cba987654321)`)
@@ -57,9 +57,14 @@ describe('OrderService - Soft Delete Tests for Child Entity', () => {
     }
     expect(normalGetFailed).to.be.true
 
-    // Verify it CANNOT be retrieved even with isDeleted=true filter (because it was physically deleted)
-    const { data: deletedGet } = await GET(`/odata/v4/order/OrderItems?$filter=ID%20eq%2087654321-4321-4321-4321-cba987654321`)
-    expect(deletedGet.value).to.have.lengthOf(0)
+    // Verify it CAN be retrieved with isDeleted=true filter (soft delete)
+    const { data: deletedGet } = await GET(`/odata/v4/order/OrderItems?$filter=isDeleted%20eq%20true%20and%20ID%20eq%2087654321-4321-4321-4321-cba987654321&$select=ID,quantity,isDeleted`)
+    expect(deletedGet.value).to.have.lengthOf(1)
+    expect(deletedGet.value[0]).to.containSubset({
+      ID: '87654321-4321-4321-4321-cba987654321',
+      quantity: 5,
+      isDeleted: true
+    })
   })
 
   it('should cascade soft delete from parent Order to composition children OrderItems', async () => {
@@ -125,15 +130,9 @@ describe('OrderService - Soft Delete Tests for Child Entity', () => {
       expect(item.isDeleted).to.be.true
     })
 
-    // NOTE: When querying OrderItems directly (not through parent), soft-deleted items ARE returned
-    // because OrderItems doesn't have @softdelete.enabled (only parent Orders has it)
-    // Soft delete filtering only applies when querying through the parent entity or with explicit isDeleted filter
-    const { data: normalItems } = await GET(`/odata/v4/order/OrderItems?$filter=order_ID%20eq%20aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee&$select=ID,quantity,isDeleted`)
-    expect(normalItems.value).to.have.lengthOf(2)
-    // But they are marked as deleted
-    normalItems.value.forEach(item => {
-      expect(item.isDeleted).to.be.true
-    })
+    // Verify OrderItems are NOT returned in normal GET requests (auto-filtered with @softdelete.enabled)
+    const { data: normalItems } = await GET(`/odata/v4/order/OrderItems?$filter=order_ID%20eq%20aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee&$select=ID,quantity`)
+    expect(normalItems.value).to.have.lengthOf(0)
   })
 
   it('should propagate isDeleted filter to composition children in $expand', async () => {
@@ -188,6 +187,54 @@ describe('OrderService - Soft Delete Tests for Child Entity', () => {
         expect(item.ID).to.not.equal('cccccccc-dddd-eeee-ffff-000000000012')
       })
     })
+  })
+
+  it('should respect explicit isDeleted filter in $expand', async () => {
+    // Create a new Order
+    const newOrder = {
+      ID: 'dddddddd-eeee-ffff-0000-000000000001',
+      createdAt: new Date().toISOString(),
+      total: 400.00,
+      items: []
+    }
+
+    await POST(`/odata/v4/order/Orders`, newOrder)
+
+    // Create OrderItems
+    const orderItem1 = {
+      ID: 'dddddddd-eeee-ffff-0000-000000000011',
+      order_ID: 'dddddddd-eeee-ffff-0000-000000000001',
+      quantity: 3
+    }
+
+    const orderItem2 = {
+      ID: 'dddddddd-eeee-ffff-0000-000000000012',
+      order_ID: 'dddddddd-eeee-ffff-0000-000000000001',
+      quantity: 7
+    }
+
+    await POST(`/odata/v4/order/OrderItems`, orderItem1)
+    await POST(`/odata/v4/order/OrderItems`, orderItem2)
+
+    // Delete only one OrderItem
+    await DELETE(`/odata/v4/order/OrderItems(dddddddd-eeee-ffff-0000-000000000011)`)
+
+    // Query Order with explicit filter to show only deleted items in $expand
+    const { data: orderWithDeletedItems } = await GET(`/odata/v4/order/Orders(dddddddd-eeee-ffff-0000-000000000001)?$expand=items($filter=isDeleted%20eq%20true)`)
+    expect(orderWithDeletedItems.items).to.have.lengthOf(1)
+    expect(orderWithDeletedItems.items[0].ID).to.equal('dddddddd-eeee-ffff-0000-000000000011')
+    expect(orderWithDeletedItems.items[0].isDeleted).to.be.true
+
+    // Query Order with explicit filter to show only active items in $expand
+    const { data: orderWithActiveItems } = await GET(`/odata/v4/order/Orders(dddddddd-eeee-ffff-0000-000000000001)?$expand=items($filter=isDeleted%20eq%20false)`)
+    expect(orderWithActiveItems.items).to.have.lengthOf(1)
+    expect(orderWithActiveItems.items[0].ID).to.equal('dddddddd-eeee-ffff-0000-000000000012')
+    expect(orderWithActiveItems.items[0].isDeleted).to.be.false
+
+    // Query Order with default $expand (should show only active items)
+    const { data: orderDefault } = await GET(`/odata/v4/order/Orders(dddddddd-eeee-ffff-0000-000000000001)?$expand=items`)
+    expect(orderDefault.items).to.have.lengthOf(1)
+    expect(orderDefault.items[0].ID).to.equal('dddddddd-eeee-ffff-0000-000000000012')
   })
 
 })
