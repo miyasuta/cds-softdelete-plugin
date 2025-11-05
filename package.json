@@ -1,6 +1,6 @@
 {
-  "name": "soft-delete-plugin",
-  "version": "1.0.0",
+  "name": "cds-softdelete-plugin",
+  "version": "0.0.1",
   "main": "cds-plugin.js",
   "files": [
     "cds-plugin.js",
