@@ -18,4 +18,11 @@ entity OrderItems: softdelete {
   key ID      : UUID;
       order   : Association to Orders;
       quantity: Integer;
+      notes   : Composition of many OrderItemNotes on notes.item = $self;
+}
+
+entity OrderItemNotes: softdelete {
+  key ID   : UUID;
+      item : Association to OrderItems;
+      text : String;
 }

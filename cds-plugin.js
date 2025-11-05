@@ -111,13 +111,28 @@ async function softDeleteCompositionChildren(entity, keys, deletionData) {
         if (whereConditions.length === 0) continue
 
         try {
+            // First, query the child records to get their keys (needed for recursive cascade)
+            // We need to do this BEFORE updating them, so we know which records to cascade from
+            const childRecords = await SELECT.from(targetEntityName).where(whereConditions)
+
             // Soft delete child records
             await UPDATE(targetEntityName)
                 .set(deletionData)
                 .where(whereConditions)
 
-            // Recursively soft delete nested compositions
-            await softDeleteCompositionChildren(targetEntity, keys, deletionData)
+            // Recursively soft delete nested compositions for each child record
+            // CRITICAL: We must pass each child's keys, not the parent's keys
+            for (const childRecord of childRecords) {
+                // Extract the keys from the child record
+                const childKeys = {}
+                for (const keyName of Object.keys(targetEntity.keys || {})) {
+                    childKeys[keyName] = childRecord[keyName]
+                }
+
+                if (Object.keys(childKeys).length > 0) {
+                    await softDeleteCompositionChildren(targetEntity, childKeys, deletionData)
+                }
+            }
         } catch (error) {
             LOG.error(`Failed to cascade soft delete to ${targetEntityName}:`, error)
             throw error
@@ -328,7 +343,7 @@ cds.once('served', () => {
                 const deletionData = {
                     isDeleted: true,
                     deletedAt: now,
-                    deletedBy: req.user.id
+                    deletedBy: req.user?.id || 'system'
                 }
 
                 const u = UPDATE(req.target).set(deletionData)

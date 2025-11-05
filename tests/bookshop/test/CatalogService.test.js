@@ -58,4 +58,35 @@ describe('CatalogService - Soft Delete Tests', () => {
     expect(deletedAtTime).to.be.lessThanOrEqual(now)
   })
 
+  it('should handle requests without user.id and use fallback value', async () => {
+    // This test verifies that when req.user.id is not available,
+    // the plugin uses a fallback value (could be 'system' or CAP's default like 'anonymous')
+
+    // Create a new Book
+    const newBook = {
+      ID: 888,
+      title: 'Test Book for System Delete',
+      stock: 5
+    }
+
+    await POST(`/odata/v4/catalog/Books`, newBook)
+
+    // Directly call the service to simulate an internal/system request
+    const srv = await cds.connect.to('CatalogService')
+
+    // Create a request without explicit user.id (CAP will use 'anonymous' or similar)
+    await srv.delete('Books').where({ ID: 888 })
+
+    // Verify the book is soft deleted with a non-null deletedBy value
+    const { data: deletedGet } = await GET(`/odata/v4/catalog/Books?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20888&$select=ID,title,isDeleted,deletedBy`)
+    expect(deletedGet.value).to.have.lengthOf(1)
+
+    const deletedBook = deletedGet.value[0]
+    expect(deletedBook.isDeleted).to.be.true
+    // Verify deletedBy is set (not null/undefined), could be 'system' or 'anonymous'
+    expect(deletedBook.deletedBy).to.exist
+    expect(deletedBook.deletedBy).to.be.a('string')
+    expect(deletedBook.deletedBy.length).to.be.greaterThan(0)
+  })
+
 })

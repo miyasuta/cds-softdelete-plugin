@@ -237,4 +237,103 @@ describe('OrderService - Soft Delete Tests for Child Entity', () => {
     expect(orderDefault.items[0].ID).to.equal('dddddddd-eeee-ffff-0000-000000000012')
   })
 
+  it('should cascade soft delete through 3 levels (Order -> OrderItems -> OrderItemNotes)', async () => {
+    // Create a new Order
+    const newOrder = {
+      ID: 'eeeeeeee-ffff-0000-1111-222222222222',
+      createdAt: new Date().toISOString(),
+      total: 500.00,
+      items: []
+    }
+
+    const createOrderResponse = await POST(`/odata/v4/order/Orders`, newOrder)
+    expect(createOrderResponse.status).to.equal(201)
+
+    // Create OrderItems (Level 2)
+    const orderItem1 = {
+      ID: 'eeeeeeee-ffff-0000-1111-222222222223',
+      order_ID: 'eeeeeeee-ffff-0000-1111-222222222222',
+      quantity: 5
+    }
+
+    const orderItem2 = {
+      ID: 'eeeeeeee-ffff-0000-1111-222222222224',
+      order_ID: 'eeeeeeee-ffff-0000-1111-222222222222',
+      quantity: 10
+    }
+
+    await POST(`/odata/v4/order/OrderItems`, orderItem1)
+    await POST(`/odata/v4/order/OrderItems`, orderItem2)
+
+    // Create OrderItemNotes (Level 3) for each OrderItem
+    const note1ForItem1 = {
+      ID: 'eeeeeeee-ffff-0000-1111-222222222225',
+      item_ID: 'eeeeeeee-ffff-0000-1111-222222222223',
+      text: 'Note 1 for Item 1'
+    }
+
+    const note2ForItem1 = {
+      ID: 'eeeeeeee-ffff-0000-1111-222222222226',
+      item_ID: 'eeeeeeee-ffff-0000-1111-222222222223',
+      text: 'Note 2 for Item 1'
+    }
+
+    const note1ForItem2 = {
+      ID: 'eeeeeeee-ffff-0000-1111-222222222227',
+      item_ID: 'eeeeeeee-ffff-0000-1111-222222222224',
+      text: 'Note 1 for Item 2'
+    }
+
+    await POST(`/odata/v4/order/OrderItemNotes`, note1ForItem1)
+    await POST(`/odata/v4/order/OrderItemNotes`, note2ForItem1)
+    await POST(`/odata/v4/order/OrderItemNotes`, note1ForItem2)
+
+    // Verify all entities exist before deletion
+    const { data: orderBefore } = await GET(`/odata/v4/order/Orders(eeeeeeee-ffff-0000-1111-222222222222)?$expand=items($expand=notes)`)
+    expect(orderBefore.items).to.have.lengthOf(2)
+    expect(orderBefore.items[0].notes).to.have.lengthOf(2)
+    expect(orderBefore.items[1].notes).to.have.lengthOf(1)
+
+    // Delete the parent Order (should cascade to OrderItems and OrderItemNotes)
+    const deleteResponse = await DELETE(`/odata/v4/order/Orders(eeeeeeee-ffff-0000-1111-222222222222)`)
+    expect(deleteResponse.status).to.equal(204)
+
+    // Verify Order is soft deleted
+    const { data: deletedOrder } = await GET(`/odata/v4/order/Orders?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20eeeeeeee-ffff-0000-1111-222222222222&$select=ID,isDeleted`)
+    expect(deletedOrder.value).to.have.lengthOf(1)
+    expect(deletedOrder.value[0].isDeleted).to.be.true
+
+    // Verify OrderItems (Level 2) are soft deleted
+    const { data: deletedItems } = await GET(`/odata/v4/order/OrderItems?$filter=isDeleted%20eq%20true%20and%20order_ID%20eq%20eeeeeeee-ffff-0000-1111-222222222222&$select=ID,isDeleted`)
+    expect(deletedItems.value).to.have.lengthOf(2)
+    const itemIDs = deletedItems.value.map(item => item.ID)
+    expect(itemIDs).to.include('eeeeeeee-ffff-0000-1111-222222222223')
+    expect(itemIDs).to.include('eeeeeeee-ffff-0000-1111-222222222224')
+
+    // CRITICAL TEST: Verify OrderItemNotes (Level 3) are also soft deleted
+    // This is where Critical Issue #3 would manifest - if cascade recursion passes wrong keys,
+    // the notes will NOT be soft deleted
+    const { data: deletedNotes } = await GET(`/odata/v4/order/OrderItemNotes?$filter=isDeleted%20eq%20true&$select=ID,text,isDeleted,item_ID`)
+
+    // We should have 3 soft-deleted notes total
+    const noteIDsForThisTest = deletedNotes.value.filter(note =>
+      note.item_ID === 'eeeeeeee-ffff-0000-1111-222222222223' ||
+      note.item_ID === 'eeeeeeee-ffff-0000-1111-222222222224'
+    )
+
+    expect(noteIDsForThisTest).to.have.lengthOf(3)
+    const noteIDs = noteIDsForThisTest.map(note => note.ID)
+    expect(noteIDs).to.include('eeeeeeee-ffff-0000-1111-222222222225')
+    expect(noteIDs).to.include('eeeeeeee-ffff-0000-1111-222222222226')
+    expect(noteIDs).to.include('eeeeeeee-ffff-0000-1111-222222222227')
+
+    noteIDsForThisTest.forEach(note => {
+      expect(note.isDeleted).to.be.true
+    })
+
+    // Verify notes are NOT returned in normal GET requests (auto-filtered)
+    const { data: normalNotes } = await GET(`/odata/v4/order/OrderItemNotes?$filter=(item_ID%20eq%20eeeeeeee-ffff-0000-1111-222222222223%20or%20item_ID%20eq%20eeeeeeee-ffff-0000-1111-222222222224)`)
+    expect(normalNotes.value).to.have.lengthOf(0)
+  })
+
 })

@@ -70,10 +70,6 @@ service OrderService {
 - Without `@softdelete.enabled`, the entity will use physical delete even if it has the `softdelete` aspect
 - This annotation is required because the plugin cannot detect aspects at the service layer
 
-### 3. Plugin Activation
-
-The plugin is automatically loaded by CAP. No additional configuration is required.
-
 ## Behavior
 
 ### DELETE Operations
@@ -151,49 +147,6 @@ DELETE /OrderItems(item-id)
 ```
 
 The parent entity is not affected when a child is deleted directly.
-
-## Usage Examples
-
-### Scenario 1: Order Deletion and Restoration
-
-```javascript
-// 1. Delete order (soft delete)
-await DELETE('/Orders(order-123)')
-
-// 2. Not visible in normal queries
-const activeOrders = await GET('/Orders')
-// order-123 is not included
-
-// 3. Retrieve deleted data
-const deletedOrders = await GET('/Orders?$filter=isDeleted eq true')
-// order-123 is included
-
-// 4. Restore (update isDeleted to false)
-await UPDATE('/Orders(order-123)').with({ isDeleted: false })
-```
-
-### Scenario 2: Composition Cascade Delete
-
-```javascript
-// Delete parent Order
-await DELETE('/Orders(order-123)')
-
-// Child OrderItems are automatically soft-deleted (cascade)
-const deletedItems = await GET('/OrderItems?$filter=isDeleted eq true and order_ID eq order-123')
-// All OrderItems linked to order-123 are soft-deleted
-```
-
-### Scenario 3: Direct Child Query
-
-```javascript
-// Query child entities directly
-const activeItems = await GET('/OrderItems')
-// Only returns items where isDeleted = false
-
-// Query with explicit filter in $expand
-const orders = await GET('/Orders?$expand=items($filter=isDeleted eq true)')
-// Returns Orders (non-deleted) with their deleted items
-```
 
 ## Limitations
 

@@ -5,4 +5,6 @@ service OrderService {
     entity Orders as projection on my.Orders;
     @softdelete.enabled
     entity OrderItems as projection on my.OrderItems;
+    @softdelete.enabled
+    entity OrderItemNotes as projection on my.OrderItemNotes;
 }
