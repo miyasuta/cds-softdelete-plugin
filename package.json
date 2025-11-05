@@ -4,7 +4,9 @@
   "main": "cds-plugin.js",
   "files": [
     "cds-plugin.js",
-    "index.cds"
+    "index.cds",
+    "README.md", 
+    "LICENSE"
   ],
   "peerDependencies": {
     "@sap/cds": ">=9"
