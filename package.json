@@ -5,10 +5,18 @@
   "files": [
     "cds-plugin.js",
     "index.cds",
-    "README.md", 
+    "README.md",
     "LICENSE"
   ],
   "peerDependencies": {
     "@sap/cds": ">=9"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/miyasuta/cds-softdelete-plugin"
+  },
+  "bugs": {
+    "url": "https://github.com/miyasuta/cds-softdelete-plugin/issues"
+  },
+  "homepage": "https://github.com/miyasuta/cds-softdelete-plugin#readme"
 }
