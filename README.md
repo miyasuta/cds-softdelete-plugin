@@ -1,7 +1,6 @@
 # cds-softdelete-plugin
 
-[![npm version](https://img.shields.io/npm/v/cds-softdelete-plugin.svg?cacheSeconds=300&t=20251107)]
-(https://www.npmjs.com/package/cds-softdelete-plugin)
+[![npm version](https://img.shields.io/npm/v/cds-softdelete-plugin.svg?cacheSeconds=300&t=20251107)](https://www.npmjs.com/package/cds-softdelete-plugin)
 [![npm downloads](https://img.shields.io/npm/dm/cds-softdelete-plugin.svg)](https://www.npmjs.com/package/cds-softdelete-plugin)
 [![license](https://img.shields.io/github/license/miyasuta/cds-softdelete-plugin?cacheSeconds=300&t=fix1)](./LICENSE)
 [![GitHub tag](https://img.shields.io/github/v/tag/miyasuta/cds-softdelete-plugin?label=tag&cacheSeconds=300&t=fix2)](https://github.com/miyasuta/cds-softdelete-plugin/tags)
