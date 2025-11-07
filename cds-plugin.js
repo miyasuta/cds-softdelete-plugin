@@ -54,7 +54,7 @@ async function softDeleteCompositionChildren(entity, keys, deletionData) {
         if (!targetEntityName) continue
 
         const targetEntity = cds.model.definitions[targetEntityName]
-        if (!targetEntity?.elements?.isDeleted || !targetEntity?.elements?.deletedAt) {
+        if (!targetEntity?.elements?.isDeleted || !targetEntity?.elements?.deletedAt || !targetEntity?.elements?.deletedBy) {
             // Target entity doesn't have soft delete fields, skip
             continue
         }
@@ -205,7 +205,7 @@ function addIsDeletedFilterToExpands(columns, entity, softDeleteTargets, parentI
             const targetEntity = cds.model.definitions[targetEntityName]
 
             // Check if target entity has soft delete fields
-            const hasSoftDeleteFields = targetEntity?.elements?.isDeleted && targetEntity?.elements?.deletedAt
+            const hasSoftDeleteFields = targetEntity?.elements?.isDeleted && targetEntity?.elements?.deletedAt && targetEntity?.elements?.deletedBy
 
             // Check if target entity is soft-delete enabled with @softdelete.enabled
             const shortName = targetEntityName?.split('.').pop()
@@ -292,7 +292,7 @@ cds.once('served', () => {
         const targets = Object.entries(srv.entities)
             .filter(([_, def]) => 
                 def?.['@softdelete.enabled'] &&
-                def?.elements?.isDeleted && def?.elements?.deletedAt 
+                def?.elements?.isDeleted && def?.elements?.deletedAt && def?.elements?.deletedBy
             )
             .map(([name]) => name)
 
