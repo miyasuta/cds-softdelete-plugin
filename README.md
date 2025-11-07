@@ -105,13 +105,34 @@ DELETE /Orders(parent-id)
 
 ### READ Operations
 
-Soft-deleted records are automatically filtered out.
+Soft-deleted records are automatically filtered out in list queries.
 
 ```javascript
 // GET /Orders
 // ↓ Automatically adds filter:
 // SELECT * FROM Orders WHERE isDeleted = false
 ```
+
+**By-key access returns soft-deleted records**:
+
+When accessing an entity by specifying all keys (e.g., `Orders(ID=...)`), the `isDeleted` filter is NOT applied, allowing direct access to soft-deleted records.
+
+```javascript
+// Access by key - Returns the record even if soft-deleted
+GET /Orders(12345678-1234-1234-1234-123456789abc)
+// ↓ No isDeleted filter is added:
+// SELECT * FROM Orders WHERE ID = '12345678-1234-1234-1234-123456789abc'
+
+// List query - Filters out soft-deleted records
+GET /Orders?$filter=ID eq 12345678-1234-1234-1234-123456789abc
+// ↓ Automatically adds isDeleted filter:
+// SELECT * FROM Orders WHERE ID = '...' AND isDeleted = false
+```
+
+This behavior allows you to:
+- Access specific soft-deleted records directly when you know the key
+- Verify deletion status by reading the `isDeleted` field
+- Retrieve soft-deleted records without using complex filters
 
 ### Filter Propagation in $expand
 
