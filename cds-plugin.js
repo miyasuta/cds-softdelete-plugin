@@ -37,6 +37,48 @@ function hasIsDeletedInWhere(where) {
 }
 
 /**
+ * Checks if all entity keys are specified in the WHERE clause
+ * @param {Object} entity - Entity definition
+ * @param {Array} where - CQN where clause array
+ * @returns {boolean} - true if all keys are specified
+ */
+function hasAllKeysInWhere(entity, where) {
+    if (!entity?.keys || !where || !Array.isArray(where)) return false
+
+    const keyNames = Object.keys(entity.keys)
+    if (keyNames.length === 0) return false
+
+    // Extract all referenced field names from the WHERE clause
+    const referencedFields = new Set()
+
+    function extractRefs(whereClause) {
+        if (!Array.isArray(whereClause)) return
+
+        for (const element of whereClause) {
+            if (element?.ref) {
+                const ref = Array.isArray(element.ref) ? element.ref : [element.ref]
+                referencedFields.add(ref[0])
+            }
+
+            // Recursively check nested arrays
+            if (Array.isArray(element)) {
+                extractRefs(element)
+            }
+
+            // Check xpr (expression) elements
+            if (element?.xpr) {
+                extractRefs(element.xpr)
+            }
+        }
+    }
+
+    extractRefs(where)
+
+    // Check if all key fields are present in the WHERE clause
+    return keyNames.every(keyName => referencedFields.has(keyName))
+}
+
+/**
  * Recursively soft deletes composition children of an entity
  * @param {Object} entity - Entity definition
  * @param {Object} keys - Key values of the parent entity being deleted
@@ -304,6 +346,28 @@ cds.once('served', () => {
             srv.before('READ', targets, (req) => {
                 // Check if isDeleted is already specified in the query filter
                 const whereClause = req.query?.SELECT?.where
+                const fromClause = req.query?.SELECT?.from
+
+                // Skip adding isDeleted filter if this is a by-key access
+                // When accessing by key (e.g., Books(ID=1) or Books(ID=1,IsActiveEntity=true)),
+                // the from clause will have a where condition: {ref: [{id: "Entity", where: [...]}]}
+                // This indicates direct key-based access to a specific record
+                if (fromClause?.ref?.[0]?.where) {
+                    LOG.debug('By-key access detected (from.ref[0].where exists), skipping isDeleted filter')
+                    return
+                }
+
+                // Also check traditional methods: SELECT.one or all keys in WHERE clause
+                if (req.query?.SELECT?.one) {
+                    LOG.debug('By-key access detected (one=true), skipping isDeleted filter')
+                    return
+                }
+
+                const allKeysInWhere = hasAllKeysInWhere(req.target, whereClause)
+                if (allKeysInWhere) {
+                    LOG.debug('All entity keys specified in WHERE, skipping isDeleted filter')
+                    return
+                }
 
                 if (!hasIsDeletedInWhere(whereClause)) {
                     // Add isDeleted = false to the filter to exclude soft-deleted records

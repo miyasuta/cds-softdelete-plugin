@@ -65,5 +65,19 @@ Authorization: Basic {{username}}:{{password}}
 
 {}
 
-###
+### Books Draft DELETE
+# @name Books_Draft_DELETE
 DELETE {{server}}/odata/v4/catalog-draft/Books(ID={{draftID}},IsActiveEntity=true)
+Authorization: Basic {{username}}:{{password}}
+
+
+### Books - Get deleted record by key (should work with all keys specified)
+# @name Books_GET_Deleted_By_Key
+GET {{server}}/odata/v4/catalog-draft/Books(ID={{draftID}},IsActiveEntity=true)
+Authorization: Basic {{username}}:{{password}}
+
+
+### Books - Get deleted records with filter
+# @name Books_GET_Deleted_With_Filter
+GET {{server}}/odata/v4/catalog-draft/Books?$filter=isDeleted eq true and ID eq {{draftID}} and IsActiveEntity eq true
+Authorization: Basic {{username}}:{{password}}
