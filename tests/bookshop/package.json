@@ -9,23 +9,27 @@
   },
   "devDependencies": {
     "@cap-js/sqlite": "^2",
-    "@cap-js/cds-test": "^0"
+    "@cap-js/cds-test": "^0",
+    "cds-plugin-ui5": "^0.13.0"
   },
   "scripts": {
     "start": "cds-serve",
     "test": "node --test",
-    "update": "npm install && npm install --install-links"
+    "update": "npm install && npm install --install-links",
+    "watch-books": "cds watch --open ns.books/index.html?sap-ui-xx-viewCache=false --livereload false"
   },
   "private": true,
   "cds": {
     "log": {
       "levels": {
-        "deploy": "silent",
-        "odata": "silent",
-        "cds": "silent",
-        "cds.serve": "silent",
         "soft-delete": "debug"
       }
     }
-  }
+  },
+  "workspaces": [
+    "app/*"
+  ],
+  "sapux": [
+    "app/books"
+  ]
 }

@@ -5,6 +5,15 @@ entity Books: softdelete {
   key ID    : Integer;
       title : String;
       stock : Integer;
+      revisions: Composition of many BookRevisions on revisions.book = $self;
+}
+
+//Booksの改訂履歴を保持するためのエンティティ
+entity BookRevisions: softdelete {
+  key ID        : UUID;
+      book      : Association to Books;
+      title     : String;
+      revisedAt : DateTime;
 }
 
 entity Orders: softdelete {
