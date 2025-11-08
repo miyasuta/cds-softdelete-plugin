@@ -4,6 +4,7 @@
   "main": "cds-plugin.js",
   "files": [
     "cds-plugin.js",
+    "lib",
     "index.cds",
     "README.md",
     "LICENSE"
