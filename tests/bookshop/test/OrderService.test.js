@@ -3,176 +3,327 @@ const cds = require('@sap/cds')
 const { GET, POST, DELETE, expect, axios } = cds.test (__dirname+'/..')
 axios.defaults.auth = { username: 'alice', password: '' }
 
-describe('OrderService - Soft Delete Tests for Child Entity', () => {
-
-  it('should soft delete OrderItem when deleted directly', async () => {
-    // Create Order with items
-    const orderID = '12345678-1234-1234-1234-123456789abc'
-    const item1ID = '87654321-4321-4321-4321-cba987654321'
-    const item2ID = '11111111-2222-3333-4444-555555555555'
-
-    await POST(`/odata/v4/order/Orders`, {
-      ID: orderID,
-      createdAt: new Date().toISOString(),
-      total: 100.00
-    })
-    await POST(`/odata/v4/order/OrderItems`, { ID: item1ID, order_ID: orderID, quantity: 5 })
-    await POST(`/odata/v4/order/OrderItems`, { ID: item2ID, order_ID: orderID, quantity: 10 })
-
-    // Delete first item
-    const deleteResponse = await DELETE(`/odata/v4/order/OrderItems(${item1ID})`)
-    expect(deleteResponse.status).to.equal(204)
-
-    // Verify only one active item remains
-    const { data: orderAfter } = await GET(`/odata/v4/order/Orders(${orderID})?$expand=items`)
-    expect(orderAfter.items).to.have.lengthOf(1)
-    expect(orderAfter.items[0].ID).to.equal(item2ID)
-
-    // Verify deleted item is NOT found in normal query
-    let normalGetFailed = false
-    try {
-      await GET(`/odata/v4/order/OrderItems(${item1ID})`)
-    } catch (error) {
-      normalGetFailed = error.response.status === 404
-    }
-    expect(normalGetFailed).to.be.true
-
-    // Verify it CAN be retrieved with isDeleted=true filter
-    const { data: deletedGet } = await GET(`/odata/v4/order/OrderItems?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${item1ID}`)
-    expect(deletedGet.value).to.have.lengthOf(1)
-    expect(deletedGet.value[0]).to.containSubset({ ID: item1ID, quantity: 5, isDeleted: true })
+// ヘルパー関数: Order作成
+async function createOrder(orderID, total = 100.00) {
+  return await POST(`/odata/v4/order/Orders`, {
+    ID: orderID,
+    createdAt: new Date().toISOString(),
+    total
   })
+}
 
-  it('should cascade soft delete from parent Order through multiple levels', async () => {
-    // Test 2-level cascade
-    const order1ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    const order1Item1ID = 'item1111-1111-1111-1111-111111111111'
-    const order1Item2ID = 'item2222-2222-2222-2222-222222222222'
-
-    await POST(`/odata/v4/order/Orders`, { ID: order1ID, createdAt: new Date().toISOString(), total: 200.00 })
-    await POST(`/odata/v4/order/OrderItems`, { ID: order1Item1ID, order_ID: order1ID, quantity: 3 })
-    await POST(`/odata/v4/order/OrderItems`, { ID: order1Item2ID, order_ID: order1ID, quantity: 7 })
-
-    // Delete parent Order
-    await DELETE(`/odata/v4/order/Orders(${order1ID})`)
-
-    // Verify Order is soft deleted
-    let orderGetFailed = false
-    try {
-      await GET(`/odata/v4/order/Orders(${order1ID})`)
-    } catch (error) {
-      orderGetFailed = error.response.status === 404
-    }
-    expect(orderGetFailed).to.be.true
-
-    const { data: deletedOrder } = await GET(`/odata/v4/order/Orders?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${order1ID}`)
-    expect(deletedOrder.value).to.have.lengthOf(1)
-    expect(deletedOrder.value[0].isDeleted).to.be.true
-
-    // Verify OrderItems are cascaded soft deleted
-    const { data: deletedItems } = await GET(`/odata/v4/order/OrderItems?$filter=isDeleted%20eq%20true%20and%20order_ID%20eq%20${order1ID}`)
-    expect(deletedItems.value).to.have.lengthOf(2)
-    const itemIDs = deletedItems.value.map(item => item.ID)
-    expect(itemIDs).to.include(order1Item1ID)
-    expect(itemIDs).to.include(order1Item2ID)
-
-    // Test 3-level cascade
-    const order2ID = 'eeeeeeee-ffff-0000-1111-222222222222'
-    const item1ID = 'eeeeeeee-ffff-0000-1111-222222222223'
-    const item2ID = 'eeeeeeee-ffff-0000-1111-222222222224'
-    const note1ID = 'eeeeeeee-ffff-0000-1111-222222222225'
-    const note2ID = 'eeeeeeee-ffff-0000-1111-222222222226'
-    const note3ID = 'eeeeeeee-ffff-0000-1111-222222222227'
-
-    await POST(`/odata/v4/order/Orders`, { ID: order2ID, createdAt: new Date().toISOString(), total: 500.00 })
-    await POST(`/odata/v4/order/OrderItems`, { ID: item1ID, order_ID: order2ID, quantity: 5 })
-    await POST(`/odata/v4/order/OrderItems`, { ID: item2ID, order_ID: order2ID, quantity: 10 })
-    await POST(`/odata/v4/order/OrderItemNotes`, { ID: note1ID, item_ID: item1ID, text: 'Note 1' })
-    await POST(`/odata/v4/order/OrderItemNotes`, { ID: note2ID, item_ID: item1ID, text: 'Note 2' })
-    await POST(`/odata/v4/order/OrderItemNotes`, { ID: note3ID, item_ID: item2ID, text: 'Note 3' })
-
-    // Verify structure before deletion
-    const { data: orderBefore } = await GET(`/odata/v4/order/Orders(${order2ID})?$expand=items($expand=notes)`)
-    expect(orderBefore.items).to.have.lengthOf(2)
-    expect(orderBefore.items[0].notes).to.have.lengthOf(2)
-    expect(orderBefore.items[1].notes).to.have.lengthOf(1)
-
-    // Delete parent Order
-    await DELETE(`/odata/v4/order/Orders(${order2ID})`)
-
-    // Verify Order is soft deleted
-    const { data: deletedOrder2 } = await GET(`/odata/v4/order/Orders?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${order2ID}`)
-    expect(deletedOrder2.value).to.have.lengthOf(1)
-    expect(deletedOrder2.value[0].isDeleted).to.be.true
-
-    // Verify OrderItems (Level 2) are soft deleted
-    const { data: deletedItems2 } = await GET(`/odata/v4/order/OrderItems?$filter=isDeleted%20eq%20true%20and%20order_ID%20eq%20${order2ID}`)
-    expect(deletedItems2.value).to.have.lengthOf(2)
-    const item2IDs = deletedItems2.value.map(item => item.ID)
-    expect(item2IDs).to.include(item1ID)
-    expect(item2IDs).to.include(item2ID)
-
-    // Verify OrderItemNotes (Level 3) are also soft deleted
-    const { data: deletedNotes } = await GET(`/odata/v4/order/OrderItemNotes?$filter=isDeleted%20eq%20true`)
-    const testNotes = deletedNotes.value.filter(note => [note1ID, note2ID, note3ID].includes(note.ID))
-    expect(testNotes).to.have.lengthOf(3)
-    testNotes.forEach(note => expect(note.isDeleted).to.be.true)
+// ヘルパー関数: OrderItem作成
+async function createOrderItem(itemID, orderID, quantity = 5) {
+  return await POST(`/odata/v4/order/OrderItems`, {
+    ID: itemID,
+    order_ID: orderID,
+    quantity
   })
+}
 
-  it('should handle $expand with isDeleted filters correctly', async () => {
-    // Setup: Create Order with items, then delete parent
-    const order1ID = 'cccccccc-dddd-eeee-ffff-000000000001'
-    const item1ID = 'cccccccc-dddd-eeee-ffff-000000000011'
-    const item2ID = 'cccccccc-dddd-eeee-ffff-000000000012'
+// ヘルパー関数: OrderItemNote作成
+async function createOrderItemNote(noteID, itemID, text = 'Note') {
+  return await POST(`/odata/v4/order/OrderItemNotes`, {
+    ID: noteID,
+    item_ID: itemID,
+    text
+  })
+}
 
-    await POST(`/odata/v4/order/Orders`, { ID: order1ID, createdAt: new Date().toISOString(), total: 300.00 })
-    await POST(`/odata/v4/order/OrderItems`, { ID: item1ID, order_ID: order1ID, quantity: 5 })
-    await POST(`/odata/v4/order/OrderItems`, { ID: item2ID, order_ID: order1ID, quantity: 8 })
-    await DELETE(`/odata/v4/order/Orders(${order1ID})`)
+// ヘルパー関数: Order + Items セットアップ
+async function setupOrderWithItems(orderID, item1ID, item2ID) {
+  await createOrder(orderID)
+  await createOrderItem(item1ID, orderID, 5)
+  await createOrderItem(item2ID, orderID, 10)
+}
 
-    // Query deleted Order with $expand - should include deleted items
-    const { data: deletedOrderWithItems } = await GET(`/odata/v4/order/Orders?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${order1ID}&$expand=items`)
-    expect(deletedOrderWithItems.value).to.have.lengthOf(1)
-    expect(deletedOrderWithItems.value[0].isDeleted).to.be.true
-    expect(deletedOrderWithItems.value[0].items).to.have.lengthOf(2)
-    deletedOrderWithItems.value[0].items.forEach(item => {
-      expect(item.isDeleted).to.be.true
-      expect(item.deletedBy).to.equal('alice')
+// ヘルパー関数: Order + Items + Notes セットアップ
+async function setupOrderWithItemsAndNotes(orderID, item1ID, item2ID, note1ID, note2ID, note3ID) {
+  await createOrder(orderID, 500.00)
+  await createOrderItem(item1ID, orderID, 5)
+  await createOrderItem(item2ID, orderID, 10)
+  await createOrderItemNote(note1ID, item1ID, 'Note 1')
+  await createOrderItemNote(note2ID, item1ID, 'Note 2')
+  await createOrderItemNote(note3ID, item2ID, 'Note 3')
+}
+
+describe('OrderService - Cascade Delete and Expand Tests', () => {
+
+  describe('Direct child deletion', () => {
+
+    it('should soft delete OrderItem when deleted directly', async () => {
+      const orderID = '12345678-1234-1234-1234-123456789001'
+      const item1ID = '87654321-4321-4321-4321-cba987654001'
+      const item2ID = '11111111-2222-3333-4444-555555555001'
+
+      await setupOrderWithItems(orderID, item1ID, item2ID)
+      await DELETE(`/odata/v4/order/OrderItems(${item1ID})`)
+
+      const { data } = await GET(`/odata/v4/order/OrderItems?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${item1ID}`)
+
+      expect(data.value).to.have.lengthOf(1)
+      expect(data.value[0]).to.containSubset({ ID: item1ID, quantity: 5, isDeleted: true })
     })
 
-    // Query active Orders - should NOT include deleted items
-    const { data: activeOrders } = await GET(`/odata/v4/order/Orders?$expand=items`)
-    activeOrders.value.forEach(order => {
-      order.items.forEach(item => {
-        expect([item1ID, item2ID]).to.not.include(item.ID)
+    it('should exclude deleted item from $expand on parent', async () => {
+      const orderID = '12345678-1234-1234-1234-123456789002'
+      const item1ID = '87654321-4321-4321-4321-cba987654002'
+      const item2ID = '11111111-2222-3333-4444-555555555002'
+
+      await setupOrderWithItems(orderID, item1ID, item2ID)
+      await DELETE(`/odata/v4/order/OrderItems(${item1ID})`)
+
+      const { data } = await GET(`/odata/v4/order/Orders(${orderID})?$expand=items`)
+
+      expect(data.items).to.have.lengthOf(1)
+      expect(data.items[0].ID).to.equal(item2ID)
+    })
+
+    it('should exclude deleted item from list queries without filter', async () => {
+      const orderID = '12345678-1234-1234-1234-123456789003'
+      const item1ID = '87654321-4321-4321-4321-cba987654003'
+      const item2ID = '11111111-2222-3333-4444-555555555003'
+
+      await setupOrderWithItems(orderID, item1ID, item2ID)
+      await DELETE(`/odata/v4/order/OrderItems(${item1ID})`)
+
+      const { data } = await GET(`/odata/v4/order/OrderItems`)
+      const deletedItem = data.value.find(item => item.ID === item1ID)
+
+      expect(deletedItem).to.be.undefined
+    })
+
+    it('should exclude deleted item from list queries with $filter by key', async () => {
+      const orderID = '12345678-1234-1234-1234-123456789004'
+      const item1ID = '87654321-4321-4321-4321-cba987654004'
+      const item2ID = '11111111-2222-3333-4444-555555555004'
+
+      await setupOrderWithItems(orderID, item1ID, item2ID)
+      await DELETE(`/odata/v4/order/OrderItems(${item1ID})`)
+
+      const { data } = await GET(`/odata/v4/order/OrderItems?$filter=ID%20eq%20${item1ID}`)
+
+      expect(data.value).to.have.lengthOf(0)
+    })
+  })
+
+  describe('2-level cascade deletion (Order -> OrderItems)', () => {
+
+    it('should soft delete parent Order', async () => {
+      const orderID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeee01'
+      const item1ID = 'item1111-1111-1111-1111-111111111101'
+      const item2ID = 'item2222-2222-2222-2222-222222222201'
+
+      await setupOrderWithItems(orderID, item1ID, item2ID)
+      await DELETE(`/odata/v4/order/Orders(${orderID})`)
+
+      const { data } = await GET(`/odata/v4/order/Orders?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${orderID}`)
+
+      expect(data.value).to.have.lengthOf(1)
+      expect(data.value[0].isDeleted).to.be.true
+    })
+
+    it('should exclude deleted Order from list queries', async () => {
+      const orderID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeee02'
+      const item1ID = 'item1111-1111-1111-1111-111111111102'
+      const item2ID = 'item2222-2222-2222-2222-222222222202'
+
+      await setupOrderWithItems(orderID, item1ID, item2ID)
+      await DELETE(`/odata/v4/order/Orders(${orderID})`)
+
+      const { data } = await GET(`/odata/v4/order/Orders`)
+      const deletedOrder = data.value.find(o => o.ID === orderID)
+
+      expect(deletedOrder).to.be.undefined
+    })
+
+    it('should exclude deleted Order from list queries with $filter by key', async () => {
+      const orderID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeee03'
+      const item1ID = 'item1111-1111-1111-1111-111111111103'
+      const item2ID = 'item2222-2222-2222-2222-222222222203'
+
+      await setupOrderWithItems(orderID, item1ID, item2ID)
+      await DELETE(`/odata/v4/order/Orders(${orderID})`)
+
+      const { data } = await GET(`/odata/v4/order/Orders?$filter=ID%20eq%20${orderID}`)
+
+      expect(data.value).to.have.lengthOf(0)
+    })
+
+    it('should cascade soft delete to all OrderItems', async () => {
+      const orderID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeee04'
+      const item1ID = 'item1111-1111-1111-1111-111111111104'
+      const item2ID = 'item2222-2222-2222-2222-222222222204'
+
+      await setupOrderWithItems(orderID, item1ID, item2ID)
+      await DELETE(`/odata/v4/order/Orders(${orderID})`)
+
+      const { data } = await GET(`/odata/v4/order/OrderItems?$filter=isDeleted%20eq%20true%20and%20order_ID%20eq%20${orderID}`)
+
+      expect(data.value).to.have.lengthOf(2)
+      const itemIDs = data.value.map(item => item.ID)
+      expect(itemIDs).to.include(item1ID)
+      expect(itemIDs).to.include(item2ID)
+    })
+  })
+
+  describe('3-level cascade deletion (Order -> OrderItems -> OrderItemNotes)', () => {
+
+    it('should have correct structure before deletion', async () => {
+      const orderID = 'eeeeeeee-ffff-0000-1111-222222222222'
+      const item1ID = 'eeeeeeee-ffff-0000-1111-222222222223'
+      const item2ID = 'eeeeeeee-ffff-0000-1111-222222222224'
+      const note1ID = 'eeeeeeee-ffff-0000-1111-222222222225'
+      const note2ID = 'eeeeeeee-ffff-0000-1111-222222222226'
+      const note3ID = 'eeeeeeee-ffff-0000-1111-222222222227'
+
+      await setupOrderWithItemsAndNotes(orderID, item1ID, item2ID, note1ID, note2ID, note3ID)
+
+      const { data } = await GET(`/odata/v4/order/Orders(${orderID})?$expand=items($expand=notes)`)
+
+      expect(data.items).to.have.lengthOf(2)
+      expect(data.items[0].notes).to.have.lengthOf(2)
+      expect(data.items[1].notes).to.have.lengthOf(1)
+    })
+
+    it('should cascade delete Level 1 (Order)', async () => {
+      const orderID = 'eeeeeeee-ffff-0000-1111-222222222232'
+      const item1ID = 'eeeeeeee-ffff-0000-1111-222222222233'
+      const item2ID = 'eeeeeeee-ffff-0000-1111-222222222234'
+      const note1ID = 'eeeeeeee-ffff-0000-1111-222222222235'
+      const note2ID = 'eeeeeeee-ffff-0000-1111-222222222236'
+      const note3ID = 'eeeeeeee-ffff-0000-1111-222222222237'
+
+      await setupOrderWithItemsAndNotes(orderID, item1ID, item2ID, note1ID, note2ID, note3ID)
+      await DELETE(`/odata/v4/order/Orders(${orderID})`)
+
+      const { data } = await GET(`/odata/v4/order/Orders?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${orderID}`)
+      expect(data.value).to.have.lengthOf(1)
+      expect(data.value[0].isDeleted).to.be.true
+    })
+
+    it('should cascade delete Level 2 (OrderItems)', async () => {
+      const orderID = 'eeeeeeee-ffff-0000-1111-222222222242'
+      const item1ID = 'eeeeeeee-ffff-0000-1111-222222222243'
+      const item2ID = 'eeeeeeee-ffff-0000-1111-222222222244'
+      const note1ID = 'eeeeeeee-ffff-0000-1111-222222222245'
+      const note2ID = 'eeeeeeee-ffff-0000-1111-222222222246'
+      const note3ID = 'eeeeeeee-ffff-0000-1111-222222222247'
+
+      await setupOrderWithItemsAndNotes(orderID, item1ID, item2ID, note1ID, note2ID, note3ID)
+      await DELETE(`/odata/v4/order/Orders(${orderID})`)
+
+      const { data } = await GET(`/odata/v4/order/OrderItems?$filter=isDeleted%20eq%20true%20and%20order_ID%20eq%20${orderID}`)
+      expect(data.value).to.have.lengthOf(2)
+      const itemIDs = data.value.map(item => item.ID)
+      expect(itemIDs).to.include(item1ID)
+      expect(itemIDs).to.include(item2ID)
+    })
+
+    it('should cascade delete Level 3 (OrderItemNotes)', async () => {
+      const orderID = 'eeeeeeee-ffff-0000-1111-222222222252'
+      const item1ID = 'eeeeeeee-ffff-0000-1111-222222222253'
+      const item2ID = 'eeeeeeee-ffff-0000-1111-222222222254'
+      const note1ID = 'eeeeeeee-ffff-0000-1111-222222222255'
+      const note2ID = 'eeeeeeee-ffff-0000-1111-222222222256'
+      const note3ID = 'eeeeeeee-ffff-0000-1111-222222222257'
+
+      await setupOrderWithItemsAndNotes(orderID, item1ID, item2ID, note1ID, note2ID, note3ID)
+      await DELETE(`/odata/v4/order/Orders(${orderID})`)
+
+      const { data } = await GET(`/odata/v4/order/OrderItemNotes?$filter=isDeleted%20eq%20true`)
+      const testNotes = data.value.filter(note => [note1ID, note2ID, note3ID].includes(note.ID))
+      expect(testNotes).to.have.lengthOf(3)
+      testNotes.forEach(note => expect(note.isDeleted).to.be.true)
+    })
+  })
+
+  describe('$expand with isDeleted filters', () => {
+    describe('Scenario 1: $expand on soft-deleted parent', () => {
+
+      it('should include deleted items when expanding on deleted parent', async () => {
+        const orderID = 'cccccccc-dddd-eeee-ffff-000000000001'
+        const item1ID = 'cccccccc-dddd-eeee-ffff-000000000011'
+        const item2ID = 'cccccccc-dddd-eeee-ffff-000000000012'
+
+        await setupOrderWithItems(orderID, item1ID, item2ID)
+        await DELETE(`/odata/v4/order/Orders(${orderID})`)
+
+        const { data } = await GET(`/odata/v4/order/Orders?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${orderID}&$expand=items`)
+
+        expect(data.value).to.have.lengthOf(1)
+        expect(data.value[0].isDeleted).to.be.true
+        expect(data.value[0].items).to.have.lengthOf(2)
+        data.value[0].items.forEach(item => {
+          expect(item.isDeleted).to.be.true
+          expect(item.deletedBy).to.equal('alice')
+        })
+      })
+
+      it('should exclude deleted items from active orders', async () => {
+        const orderID = 'cccccccc-dddd-eeee-ffff-000000000021'
+        const item1ID = 'cccccccc-dddd-eeee-ffff-000000000022'
+        const item2ID = 'cccccccc-dddd-eeee-ffff-000000000023'
+
+        await setupOrderWithItems(orderID, item1ID, item2ID)
+        await DELETE(`/odata/v4/order/Orders(${orderID})`)
+
+        const { data } = await GET(`/odata/v4/order/Orders?$expand=items`)
+
+        data.value.forEach(order => {
+          order.items.forEach(item => {
+            expect([item1ID, item2ID]).to.not.include(item.ID)
+          })
+        })
       })
     })
 
-    // Setup: Create Order with items, delete only one item
-    const order2ID = 'dddddddd-eeee-ffff-0000-000000000001'
-    const item3ID = 'dddddddd-eeee-ffff-0000-000000000011'
-    const item4ID = 'dddddddd-eeee-ffff-0000-000000000012'
+    describe('Scenario 2: Explicit isDeleted filters in $expand', () => {
 
-    await POST(`/odata/v4/order/Orders`, { ID: order2ID, createdAt: new Date().toISOString(), total: 400.00 })
-    await POST(`/odata/v4/order/OrderItems`, { ID: item3ID, order_ID: order2ID, quantity: 3 })
-    await POST(`/odata/v4/order/OrderItems`, { ID: item4ID, order_ID: order2ID, quantity: 7 })
-    await DELETE(`/odata/v4/order/OrderItems(${item3ID})`)
+      it('should show only deleted items with $expand and isDeleted=true filter', async () => {
+        const orderID = 'dddddddd-eeee-ffff-0000-000000000001'
+        const item3ID = 'dddddddd-eeee-ffff-0000-000000000011'
+        const item4ID = 'dddddddd-eeee-ffff-0000-000000000012'
 
-    // Test explicit isDeleted filters in $expand
-    const { data: orderWithDeletedItems } = await GET(`/odata/v4/order/Orders(${order2ID})?$expand=items($filter=isDeleted%20eq%20true)`)
-    expect(orderWithDeletedItems.items).to.have.lengthOf(1)
-    expect(orderWithDeletedItems.items[0].ID).to.equal(item3ID)
-    expect(orderWithDeletedItems.items[0].isDeleted).to.be.true
+        await setupOrderWithItems(orderID, item3ID, item4ID)
+        await DELETE(`/odata/v4/order/OrderItems(${item3ID})`)
 
-    const { data: orderWithActiveItems } = await GET(`/odata/v4/order/Orders(${order2ID})?$expand=items($filter=isDeleted%20eq%20false)`)
-    expect(orderWithActiveItems.items).to.have.lengthOf(1)
-    expect(orderWithActiveItems.items[0].ID).to.equal(item4ID)
-    expect(orderWithActiveItems.items[0].isDeleted).to.be.false
+        const { data } = await GET(`/odata/v4/order/Orders(${orderID})?$expand=items($filter=isDeleted%20eq%20true)`)
 
-    // Default $expand should show only active items
-    const { data: orderDefault } = await GET(`/odata/v4/order/Orders(${order2ID})?$expand=items`)
-    expect(orderDefault.items).to.have.lengthOf(1)
-    expect(orderDefault.items[0].ID).to.equal(item4ID)
+        expect(data.items).to.have.lengthOf(1)
+        expect(data.items[0].ID).to.equal(item3ID)
+        expect(data.items[0].isDeleted).to.be.true
+      })
+
+      it('should show only active items with $expand and isDeleted=false filter', async () => {
+        const orderID = 'dddddddd-eeee-ffff-0000-000000000021'
+        const item3ID = 'dddddddd-eeee-ffff-0000-000000000031'
+        const item4ID = 'dddddddd-eeee-ffff-0000-000000000032'
+
+        await setupOrderWithItems(orderID, item3ID, item4ID)
+        await DELETE(`/odata/v4/order/OrderItems(${item3ID})`)
+
+        const { data } = await GET(`/odata/v4/order/Orders(${orderID})?$expand=items($filter=isDeleted%20eq%20false)`)
+
+        expect(data.items).to.have.lengthOf(1)
+        expect(data.items[0].ID).to.equal(item4ID)
+        expect(data.items[0].isDeleted).to.be.false
+      })
+
+      it('should show only active items with default $expand', async () => {
+        const orderID = 'dddddddd-eeee-ffff-0000-000000000041'
+        const item3ID = 'dddddddd-eeee-ffff-0000-000000000051'
+        const item4ID = 'dddddddd-eeee-ffff-0000-000000000052'
+
+        await setupOrderWithItems(orderID, item3ID, item4ID)
+        await DELETE(`/odata/v4/order/OrderItems(${item3ID})`)
+
+        const { data } = await GET(`/odata/v4/order/Orders(${orderID})?$expand=items`)
+
+        expect(data.items).to.have.lengthOf(1)
+        expect(data.items[0].ID).to.equal(item4ID)
+      })
+    })
   })
 
 })

@@ -2,7 +2,6 @@ const cds = require('@sap/cds')
 const {
     LOG,
     hasIsDeletedInWhere,
-    hasAllKeysInWhere,
     getIsDeletedValueFromWhere,
     addIsDeletedFilterToExpands,
     softDeleteCompositionChildren
@@ -50,18 +49,6 @@ cds.once('served', () => {
                 // This indicates direct key-based access to a specific record
                 if (fromClause?.ref?.[0]?.where) {
                     LOG.debug('By-key access detected (from.ref[0].where exists), skipping isDeleted filter')
-                    return
-                }
-
-                // Also check traditional methods: SELECT.one or all keys in WHERE clause
-                if (req.query?.SELECT?.one) {
-                    LOG.debug('By-key access detected (one=true), skipping isDeleted filter')
-                    return
-                }
-
-                const allKeysInWhere = hasAllKeysInWhere(req.target, whereClause)
-                if (allKeysInWhere) {
-                    LOG.debug('All entity keys specified in WHERE, skipping isDeleted filter')
                     return
                 }
 
