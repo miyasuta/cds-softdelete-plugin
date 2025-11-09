@@ -25,10 +25,27 @@ cds.once('served', () => {
     for (const srv of Object.values(cds.services)) {
         if (!srv?.entities) continue
 
-        // Find all entities with @softdelete.enabled annotation and required fields
-        const targets = Object.entries(srv.entities)
-            .filter(([_, def]) => 
-                def?.['@softdelete.enabled'] &&
+        // Find all entities with @softdelete.enabled annotation
+        const enabledEntities = Object.entries(srv.entities)
+            .filter(([_, def]) => def?.['@softdelete.enabled'])
+
+        // Validate that all enabled entities have required fields
+        for (const [name, def] of enabledEntities) {
+            const missingFields = []
+            if (!def?.elements?.isDeleted) missingFields.push('isDeleted')
+            if (!def?.elements?.deletedAt) missingFields.push('deletedAt')
+            if (!def?.elements?.deletedBy) missingFields.push('deletedBy')
+
+            if (missingFields.length > 0) {
+                const error = `Entity '${name}' in service '${srv.name}' has @softdelete.enabled but is missing required fields: ${missingFields.join(', ')}. Please add the 'softdelete' aspect to the entity.`
+                LOG.error(error)
+                throw new Error(error)
+            }
+        }
+
+        // Find entities with all required fields
+        const targets = enabledEntities
+            .filter(([_, def]) =>
                 def?.elements?.isDeleted && def?.elements?.deletedAt && def?.elements?.deletedBy
             )
             .map(([name]) => name)
