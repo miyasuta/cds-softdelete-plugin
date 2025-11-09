@@ -76,6 +76,11 @@ service OrderService {
 - Without `@softdelete.enabled`, the entity will use physical delete even if it has the `softdelete` aspect
 - This annotation is required because the plugin cannot detect aspects at the service layer
 
+**Validation**:
+- The plugin validates that entities with `@softdelete.enabled` have all required fields (`isDeleted`, `deletedAt`, `deletedBy`)
+- If an entity has `@softdelete.enabled` but is missing any required fields, the server will fail to start with an error message indicating which fields are missing
+- To fix this error, ensure the `softdelete` aspect is added to the entity in your data model
+
 ## Behavior
 
 ### DELETE Operations
