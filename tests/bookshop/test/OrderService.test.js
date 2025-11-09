@@ -3,48 +3,43 @@ const cds = require('@sap/cds')
 const { GET, POST, DELETE, expect, axios } = cds.test (__dirname+'/..')
 axios.defaults.auth = { username: 'alice', password: '' }
 
-// ヘルパー関数: Order作成
-async function createOrder(orderID, total = 100.00) {
+// ヘルパー関数: Order + Items セットアップ (deep insert)
+async function setupOrderWithItems(orderID, item1ID, item2ID) {
   return await POST(`/odata/v4/order/Orders`, {
     ID: orderID,
     createdAt: new Date().toISOString(),
-    total
+    total: 100.00,
+    items: [
+      { ID: item1ID, quantity: 5 },
+      { ID: item2ID, quantity: 10 }
+    ]
   })
 }
 
-// ヘルパー関数: OrderItem作成
-async function createOrderItem(itemID, orderID, quantity = 5) {
-  return await POST(`/odata/v4/order/OrderItems`, {
-    ID: itemID,
-    order_ID: orderID,
-    quantity
-  })
-}
-
-// ヘルパー関数: OrderItemNote作成
-async function createOrderItemNote(noteID, itemID, text = 'Note') {
-  return await POST(`/odata/v4/order/OrderItemNotes`, {
-    ID: noteID,
-    item_ID: itemID,
-    text
-  })
-}
-
-// ヘルパー関数: Order + Items セットアップ
-async function setupOrderWithItems(orderID, item1ID, item2ID) {
-  await createOrder(orderID)
-  await createOrderItem(item1ID, orderID, 5)
-  await createOrderItem(item2ID, orderID, 10)
-}
-
-// ヘルパー関数: Order + Items + Notes セットアップ
+// ヘルパー関数: Order + Items + Notes セットアップ (deep insert)
 async function setupOrderWithItemsAndNotes(orderID, item1ID, item2ID, note1ID, note2ID, note3ID) {
-  await createOrder(orderID, 500.00)
-  await createOrderItem(item1ID, orderID, 5)
-  await createOrderItem(item2ID, orderID, 10)
-  await createOrderItemNote(note1ID, item1ID, 'Note 1')
-  await createOrderItemNote(note2ID, item1ID, 'Note 2')
-  await createOrderItemNote(note3ID, item2ID, 'Note 3')
+  return await POST(`/odata/v4/order/Orders`, {
+    ID: orderID,
+    createdAt: new Date().toISOString(),
+    total: 500.00,
+    items: [
+      {
+        ID: item1ID,
+        quantity: 5,
+        notes: [
+          { ID: note1ID, text: 'Note 1' },
+          { ID: note2ID, text: 'Note 2' }
+        ]
+      },
+      {
+        ID: item2ID,
+        quantity: 10,
+        notes: [
+          { ID: note3ID, text: 'Note 3' }
+        ]
+      }
+    ]
+  })
 }
 
 describe('OrderService - Cascade Delete and Expand Tests', () => {
