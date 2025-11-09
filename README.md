@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/cds-softdelete-plugin.svg)](https://www.npmjs.com/package/cds-softdelete-plugin)
 [![npm downloads](https://img.shields.io/npm/dm/cds-softdelete-plugin.svg)](https://www.npmjs.com/package/cds-softdelete-plugin)
 [![license](https://img.shields.io/github/license/miyasuta/cds-softdelete-plugin)](./LICENSE)
-[![GitHub tag](https://img.shields.io/github/v/tag/miyasuta/cds-softdelete-plugin?label=tag](https://github.com/miyasuta/cds-softdelete-plugin/tags)
+[![GitHub tag](https://img.shields.io/github/v/tag/miyasuta/cds-softdelete-plugin?label=tag)](https://github.com/miyasuta/cds-softdelete-plugin/tags)
 
 
 A plugin for implementing soft delete functionality in SAP Cloud Application Programming Model (CAP) applications.
