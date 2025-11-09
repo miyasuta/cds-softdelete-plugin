@@ -22,7 +22,7 @@
   "cds": {
     "log": {
       "levels": {
-        "soft-delete": "silent",
+        "soft-delete": "debug",
         "cds": "silent",
         "odata": "silent"
       }

@@ -24,6 +24,6 @@ Authorization: Basic {{username}}:{{password}}
 
 ### Books
 # @name Books_DELETE
-DELETE {{server}}/odata/v4/catalog/Books/23786543
+DELETE {{server}}/odata/v4/catalog/Books(23786543)
 Content-Type: application/json
 Authorization: Basic {{username}}:{{password}}

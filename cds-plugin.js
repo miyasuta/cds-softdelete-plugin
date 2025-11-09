@@ -93,28 +93,18 @@ cds.once('served', () => {
                     deletedBy: req.user?.id || 'system'
                 }
 
-                const u = UPDATE(req.target).set(deletionData)
-
-                if (req.query?.DELETE?.where) {
-                    u.where(req.query.DELETE.where)
-                } else if (req.data && Object.keys(req.data).length) {
-                    u.where(req.data)
-                } else {
-                    return req.reject(400, 'No target specified for DELETE')
-                }
+                const u = UPDATE(req.target).set(deletionData).where(req.data)
 
                 // Execute the soft delete on the parent entity
                 await u
 
                 // Cascade soft delete to composition children
-                // req.data contains the key values of the entity being deleted
-                if (req.data && Object.keys(req.data).length > 0) {
-                    try {
-                        await softDeleteCompositionChildren(req.target, req.data, deletionData)
-                    } catch (error) {
-                        LOG.error('Failed to cascade soft delete to composition children:', error)
-                        return req.reject(500, 'Failed to cascade soft delete to composition children')
-                    }
+                // req.data contains the key values of the entity being deleted 
+                try {
+                    await softDeleteCompositionChildren(req.target, req.data, deletionData)
+                } catch (error) {
+                    LOG.error('Failed to cascade soft delete to composition children:', error)
+                    return req.reject(500, 'Failed to cascade soft delete to composition children')
                 }
 
                 return req.reply(204)
