@@ -255,6 +255,54 @@ describe('OrderService - Cascade Delete and Expand Tests', () => {
         })
       })
 
+      it('should include deleted items when accessing deleted parent by key (Object Page scenario)', async () => {
+        const orderID = 'cccccccc-dddd-eeee-ffff-000000000002'
+        const item1ID = 'cccccccc-dddd-eeee-ffff-000000000013'
+        const item2ID = 'cccccccc-dddd-eeee-ffff-000000000014'
+
+        await setupOrderWithItems(orderID, item1ID, item2ID)
+        await DELETE(`/odata/v4/order/Orders(${orderID})`)
+
+        // Key-based access (Object Page) - should show deleted items for deleted parent
+        const { data } = await GET(`/odata/v4/order/Orders(${orderID})?$expand=items`)
+
+        expect(data.isDeleted).to.be.true
+        expect(data.items).to.have.lengthOf(2)
+        data.items.forEach(item => {
+          expect(item.isDeleted).to.be.true
+          expect(item.deletedBy).to.equal('alice')
+        })
+      })
+
+      it('should include deleted notes in nested expand when accessing deleted parent by key', async () => {
+        const orderID = 'cccccccc-dddd-eeee-ffff-000000000003'
+        const item1ID = 'cccccccc-dddd-eeee-ffff-000000000015'
+        const item2ID = 'cccccccc-dddd-eeee-ffff-000000000016'
+        const note1ID = 'cccccccc-dddd-eeee-ffff-000000000017'
+        const note2ID = 'cccccccc-dddd-eeee-ffff-000000000018'
+        const note3ID = 'cccccccc-dddd-eeee-ffff-000000000019'
+
+        await setupOrderWithItemsAndNotes(orderID, item1ID, item2ID, note1ID, note2ID, note3ID)
+        await DELETE(`/odata/v4/order/Orders(${orderID})`)
+
+        // Key-based access with nested expand - should show all deleted items and notes
+        const { data } = await GET(`/odata/v4/order/Orders(${orderID})?$expand=items($expand=notes)`)
+
+        expect(data.isDeleted).to.be.true
+        expect(data.items).to.have.lengthOf(2)
+
+        const item1 = data.items.find(i => i.ID === item1ID)
+        const item2 = data.items.find(i => i.ID === item2ID)
+
+        expect(item1.isDeleted).to.be.true
+        expect(item1.notes).to.have.lengthOf(2)
+        item1.notes.forEach(note => expect(note.isDeleted).to.be.true)
+
+        expect(item2.isDeleted).to.be.true
+        expect(item2.notes).to.have.lengthOf(1)
+        item2.notes.forEach(note => expect(note.isDeleted).to.be.true)
+      })
+
       it('should exclude deleted items from active orders', async () => {
         const orderID = 'cccccccc-dddd-eeee-ffff-000000000021'
         const item1ID = 'cccccccc-dddd-eeee-ffff-000000000022'

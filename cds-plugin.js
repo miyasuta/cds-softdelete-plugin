@@ -4,7 +4,8 @@ const {
     hasIsDeletedInWhere,
     getIsDeletedValueFromWhere,
     addIsDeletedFilterToExpands,
-    softDeleteCompositionChildren
+    softDeleteCompositionChildren,
+    getKeyAccessWhere
 } = require('./lib/utils')
 
 /**
@@ -87,13 +88,34 @@ cds.once('served', () => {
 
             // Add isDeleted filter to expanded navigations for ALL entities
             // This handles cases where a non-soft-delete entity expands a soft-delete entity
-            srv.before('READ', '*', (req) => {
+            srv.before('READ', '*', async (req) => {
                 const columns = req.query?.SELECT?.columns
                 if (columns) {
                     const entity = req.target
                     const whereClause = req.query?.SELECT?.where
+                    const fromClause = req.query?.SELECT?.from
+
                     // Get the isDeleted filter value from parent query (if specified)
-                    const parentIsDeletedValue = getIsDeletedValueFromWhere(whereClause)
+                    let parentIsDeletedValue = getIsDeletedValueFromWhere(whereClause)
+
+                    // For key-based access (Object Page), we need to check the parent's isDeleted status
+                    // because the parent's where clause doesn't contain isDeleted filter
+                    if (parentIsDeletedValue === null && entity?.elements?.isDeleted) {
+                        const keyAccessWhere = getKeyAccessWhere(fromClause)
+                        if (keyAccessWhere) {
+                            // This is a key-based access, fetch the parent's isDeleted value
+                            try {
+                                const result = await SELECT.one.from(entity).columns('isDeleted').where(keyAccessWhere)
+                                if (result) {
+                                    parentIsDeletedValue = result.isDeleted
+                                    LOG.debug(`Key-based access: parent isDeleted = ${parentIsDeletedValue}`)
+                                }
+                            } catch (error) {
+                                LOG.debug(`Could not fetch parent isDeleted value: ${error.message}`)
+                            }
+                        }
+                    }
+
                     addIsDeletedFilterToExpands(columns, entity, targets, parentIsDeletedValue)
                 }
             })
