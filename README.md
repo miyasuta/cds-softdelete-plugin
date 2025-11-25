@@ -17,6 +17,7 @@ This plugin enables easy implementation of soft delete (logical delete) for enti
 - **Automatic Soft Delete**: Automatically converts DELETE requests to UPDATE operations
 - **Automatic Filtering**: Automatically excludes soft-deleted records from READ requests
 - **Composition Cascade Support**: When a parent entity is deleted, its composition children are automatically soft-deleted
+- **Draft Entity Support**: Soft delete works in draft edit mode (Fiori Elements Object Page)
 - **Access to Deleted Data**: Retrieve soft-deleted data using `isDeleted=true` filter
 - **Deletion Metadata**: Automatically records deletion timestamp (`deletedAt`) and user (`deletedBy`)
 
@@ -107,6 +108,23 @@ DELETE /Orders(parent-id)
 // UPDATE Orders SET isDeleted = true, ... WHERE ID = 'parent-id'
 // UPDATE OrderItems SET isDeleted = true, ... WHERE order_ID = 'parent-id'
 ```
+
+**Draft entity soft delete**:
+
+When using Fiori Elements Object Page with draft-enabled entities:
+
+```javascript
+// Delete OrderItem in draft edit mode
+DELETE /Orders(ID=...,IsActiveEntity=false)/items(ID=...,IsActiveEntity=false)
+
+// ↓ Soft deletes the draft item:
+// UPDATE OrderItems_drafts SET isDeleted = true, ... WHERE ID = '...'
+
+// When draft is activated, isDeleted flag propagates to active entity:
+// UPDATE OrderItems SET isDeleted = true, ... WHERE ID = '...'
+```
+
+The soft delete behavior applies to both active and draft entities, ensuring data preservation throughout the draft lifecycle.
 
 ### READ Operations
 
@@ -200,9 +218,7 @@ The parent entity is not affected when a child is deleted directly.
 - **OData V2 Compatibility**: OData V2 does not support `$filter` within `$expand`, so the parent's `isDeleted` filter is automatically propagated to Composition children.
 - **User-specified Filters**: When you explicitly specify `isDeleted` in an `$expand` filter (e.g., `$expand=items($filter=isDeleted eq true)`), the plugin respects your filter and does not add automatic filtering.
 - **Physical Deletion**: If physical deletion is required, you can implement custom logic to delete soft-deleted records (where `isDeleted = true`).
-- **Draft Edit Mode**: When deleting composition children in draft edit mode (e.g., deleting an OrderItem while editing an Order in Fiori Elements Object Page), the deletion results in a physical delete, not a soft delete. This is because CAP's draft activation process synchronizes draft data to active entities, and deleted draft items are not preserved. Soft delete works correctly when:
-  - Deleting active entities directly (not in edit mode)
-  - Deleting the parent entity (cascade soft delete to children)
+- **Draft Entity READ Filtering**: Draft entities are excluded from automatic `isDeleted` filtering. This allows CAP's draft activation process to properly synchronize soft-deleted records from draft to active entities. When querying draft entities directly (e.g., `OrderItems_drafts`), you may need to manually add an `isDeleted` filter if you only want to see non-deleted drafts.
 
 ## License
 
