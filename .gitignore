@@ -4,3 +4,9 @@ node_modules/
 CLAUDE.md
 .mcp.json
 todo.md
+
+# IDE
+.vscode/
+
+# Test UI projects
+tests/ordersui/
