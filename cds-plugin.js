@@ -101,6 +101,13 @@ cds.once('served', () => {
 
             // Automatically filter out soft-deleted records on READ for soft-delete enabled entities
             srv.before('READ', targets, (req) => {
+                // Skip filtering for draft entities
+                // Draft entities need to see soft-deleted records so they can be activated
+                if (req.target?.name?.endsWith('.drafts')) {
+                    LOG.debug('Skipping isDeleted filter for draft entity:', req.target.name)
+                    return
+                }
+
                 // Check if isDeleted is already specified in the query filter
                 const whereClause = req.query?.SELECT?.where
                 const fromClause = req.query?.SELECT?.from
@@ -133,6 +140,13 @@ cds.once('served', () => {
             // Add isDeleted filter to expanded navigations for ALL entities
             // This handles cases where a non-soft-delete entity expands a soft-delete entity
             srv.before('READ', '*', async (req) => {
+                // Skip filtering for draft entities
+                // Draft entities need to see soft-deleted records so they can be activated
+                if (req.target?.name?.endsWith('.drafts')) {
+                    LOG.debug('Skipping expand filter for draft entity:', req.target.name)
+                    return
+                }
+
                 const columns = req.query?.SELECT?.columns
                 if (columns) {
                     const entity = req.target
