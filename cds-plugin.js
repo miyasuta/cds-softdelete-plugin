@@ -55,6 +55,50 @@ cds.once('served', () => {
         LOG.info(`Enabling soft delete for entities: ${targets.join(', ')}`)
 
         srv.prepend(() => {
+            // Setup draft DELETE handlers for draft-enabled entities
+            for (const targetName of targets) {
+                // Check if the target has a drafts entity
+                const targetEntity = srv.entities[targetName]
+                const hasDrafts = targetEntity?.drafts !== undefined
+
+                if (hasDrafts) {
+                    // Get the draft entity definition and name
+                    const draftEntity = targetEntity.drafts
+                    const draftEntityName = draftEntity.name
+                    LOG.info(`Registering DELETE handler for draft entity: ${draftEntityName}`)
+
+                    // Register DELETE handler for draft entities
+                    // Use the entity reference directly instead of string name
+                    srv.on('DELETE', draftEntity, async (req) => {
+                        LOG.info(`Soft deleting draft entity ${draftEntityName}`)
+
+                        // Set isDeleted=true on the draft entity instead of physical delete
+                        // This will be propagated to the active entity when the draft is activated
+                        const now = new Date().toISOString()
+                        const deletionData = {
+                            isDeleted: true,
+                            deletedAt: now,
+                            deletedBy: req.user?.id || 'system'
+                        }
+
+                        // Use the draft entity from the request target to get the correct entity reference
+                        await UPDATE(req.target).set(deletionData).where(req.data)
+
+                        // Cascade soft delete to composition children of the draft entity
+                        try {
+                            await softDeleteCompositionChildren(draftEntity, req.data, deletionData)
+                        } catch (error) {
+                            LOG.error('Failed to cascade soft delete to composition children:', error)
+                            return req.reject(500, 'Failed to cascade soft delete to composition children')
+                        }
+
+                        // Return empty result to prevent default physical delete
+                        // The isDeleted flag will be propagated to the active entity when the draft is activated
+                        return 0
+                    })
+                }
+            }
+
             // Automatically filter out soft-deleted records on READ for soft-delete enabled entities
             srv.before('READ', targets, (req) => {
                 // Check if isDeleted is already specified in the query filter
@@ -138,7 +182,7 @@ cds.once('served', () => {
                 await u
 
                 // Cascade soft delete to composition children
-                // req.data contains the key values of the entity being deleted 
+                // req.data contains the key values of the entity being deleted
                 try {
                     await softDeleteCompositionChildren(req.target, req.data, deletionData)
                 } catch (error) {
@@ -151,5 +195,5 @@ cds.once('served', () => {
 
         })
     }
-    
+
 })

@@ -175,4 +175,114 @@ describe('OrderDraftService - Draft-enabled Cascade Soft Delete Tests', () => {
 
   })
 
+  describe('Draft edit mode deletion (Object Page scenario)', () => {
+
+    it('should handle deletion via navigation path (Orders/items)', async () => {
+      // This test replicates the UI deletion pattern: DELETE Orders(...)/items(...)
+      // When deleting via navigation, req.data may contain parent keys
+      const orderID = 'd0045001-0001-0001-0001-000000000001'
+      const item1ID = 'd0045001-0001-0001-0001-000000000011'
+      const note1ID = 'd0045001-0001-0001-0001-000000000021'
+
+      // Create and activate order with item and note
+      await POST(`/odata/v4/order-draft/Orders`, {
+        ID: orderID,
+        total: 100.00,
+        items: [
+          {
+            ID: item1ID,
+            quantity: 5,
+            notes: [
+              { ID: note1ID, text: 'Note 1' }
+            ]
+          }
+        ]
+      })
+      await POST(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=false)/OrderDraftService.draftActivate`)
+
+      // Edit the order (create draft)
+      await POST(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=true)/OrderDraftService.draftEdit`, {
+        PreserveChanges: true
+      })
+
+      // Delete the item via navigation path - mimics UI behavior
+      await DELETE(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=false)/items(ID=${item1ID},IsActiveEntity=false)`)
+
+      // If we get here without FK errors, the test passes
+    })
+
+    it('should soft delete OrderItem when deleted in draft edit mode', async () => {
+      const orderID = 'd0050001-0001-0001-0001-000000000001'
+      const item1ID = 'd0050001-0001-0001-0001-000000000011'
+      const item2ID = 'd0050001-0001-0001-0001-000000000012'
+
+      await createAndActivateOrderWithItems(orderID, item1ID, item2ID)
+
+      // Edit the order (create draft)
+      await POST(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=true)/OrderDraftService.draftEdit`, {
+        PreserveChanges: true
+      })
+
+      // Delete one item in draft mode (simulating Object Page edit mode deletion)
+      await DELETE(`/odata/v4/order-draft/OrderItems(ID=${item1ID},IsActiveEntity=false)`)
+
+      // Activate the draft
+      await POST(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=false)/OrderDraftService.draftActivate`)
+
+      // Verify the deleted item is soft deleted in active entity
+      const { data: itemsData } = await GET(`/odata/v4/order-draft/OrderItems?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${item1ID}`)
+      expect(itemsData.value).to.have.lengthOf(1)
+      expect(itemsData.value[0].isDeleted).to.be.true
+      expect(itemsData.value[0].order_ID).to.equal(orderID)
+
+      // Verify the other item is still active
+      const { data: activeItemData } = await GET(`/odata/v4/order-draft/OrderItems(ID=${item2ID},IsActiveEntity=true)`)
+      expect(activeItemData.isDeleted).to.be.false
+    })
+
+    it('should cascade soft delete to OrderItemNotes when OrderItem is deleted in draft edit mode', async () => {
+      const orderID = 'd0060001-0001-0001-0001-000000000001'
+      const item1ID = 'd0060001-0001-0001-0001-000000000011'
+      const item2ID = 'd0060001-0001-0001-0001-000000000012'
+      const note1ID = 'd0060001-0001-0001-0001-000000000021'
+      const note2ID = 'd0060001-0001-0001-0001-000000000022'
+      const note3ID = 'd0060001-0001-0001-0001-000000000023'
+
+      await createAndActivateOrderWithItemsAndNotes(orderID, item1ID, item2ID, note1ID, note2ID, note3ID)
+
+      // Edit the order (create draft)
+      await POST(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=true)/OrderDraftService.draftEdit`, {
+        PreserveChanges: true
+      })
+
+      // Delete item1 (which has note1 and note2) in draft mode
+      await DELETE(`/odata/v4/order-draft/OrderItems(ID=${item1ID},IsActiveEntity=false)`)
+
+      // Activate the draft
+      await POST(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=false)/OrderDraftService.draftActivate`)
+
+      // Verify the deleted item is soft deleted
+      const { data: itemData } = await GET(`/odata/v4/order-draft/OrderItems?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${item1ID}`)
+      expect(itemData.value).to.have.lengthOf(1)
+      expect(itemData.value[0].isDeleted).to.be.true
+
+      // Verify the notes of deleted item are also soft deleted
+      const { data: deletedNotesData } = await GET(`/odata/v4/order-draft/OrderItemNotes?$filter=isDeleted%20eq%20true`)
+      const deletedNotes = deletedNotesData.value.filter(note => [note1ID, note2ID].includes(note.ID))
+      expect(deletedNotes).to.have.lengthOf(2)
+      deletedNotes.forEach(note => {
+        expect(note.isDeleted).to.be.true
+        expect(note.item_ID).to.equal(item1ID)
+      })
+
+      // Verify item2 and its note (note3) are still active
+      const { data: activeItemData } = await GET(`/odata/v4/order-draft/OrderItems(ID=${item2ID},IsActiveEntity=true)`)
+      expect(activeItemData.isDeleted).to.be.false
+
+      const { data: activeNoteData } = await GET(`/odata/v4/order-draft/OrderItemNotes(ID=${note3ID},IsActiveEntity=true)`)
+      expect(activeNoteData.isDeleted).to.be.false
+    })
+
+  })
+
 })
