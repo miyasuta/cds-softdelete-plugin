@@ -157,6 +157,20 @@ This behavior allows you to:
 - Verify deletion status by reading the `isDeleted` field
 - Retrieve soft-deleted records without using complex filters
 
+**Navigation path filters soft-deleted children**:
+
+When accessing children through a navigation path (e.g., `Orders(ID=...)/items`), the `isDeleted` filter IS applied to the children, even when the parent is accessed by key.
+
+```javascript
+// Navigation path - Filters out soft-deleted items
+GET /Orders(ID=...,IsActiveEntity=true)/items
+// ↓ Automatically adds isDeleted filter to items:
+// SELECT * FROM OrderItems WHERE order_ID = '...' AND isDeleted = false
+
+// This ensures that when viewing an Order in Object Page,
+// soft-deleted items are not displayed after refreshing the page.
+```
+
 **Parent's isDeleted status propagates to children in $expand**:
 
 When accessing a soft-deleted parent by key with `$expand`, the parent's `isDeleted` status is automatically propagated to composition children.
