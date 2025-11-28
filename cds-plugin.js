@@ -123,39 +123,29 @@ cds.once('served', () => {
                     // We need to verify that the entity being accessed (in fromClause) matches the target entity
                     // For navigation paths like Orders(ID=1)/items:
                     //   - req.target.name might be "OrderDraftService.OrderItems"
-                    //   - fromClause.ref[0].id might be "OrderDraftService.OrderItems"
-                    //   BUT the query is actually accessing items through the Orders navigation
+                    //   - fromClause.ref[0].id might be "OrderDraftService.Orders"
+                    //   - The query is accessing items through the Orders navigation
                     //
-                    // The key insight: If there's a navigation involved, the columns will be different from "*"
-                    // or the query structure will indicate a navigation rather than direct entity access
+                    // Strategy: Check if fromClause.ref has multiple elements OR if the entity names differ
                     const isNavigationPath = fromClause.ref.length > 1
-                    LOG.debug('fromClause.ref:', JSON.stringify(fromClause.ref))
-                    LOG.debug('fromClause.ref.length:', fromClause.ref.length)
-                    LOG.debug('req.target.name:', req.target.name)
 
                     // Additional check: if fromClause.ref[0] has an 'id' property, compare it with target name
                     if (fromClause.ref[0].id) {
-                        LOG.debug('fromClause.ref[0].id:', fromClause.ref[0].id)
-
                         // Extract entity name without service prefix for comparison
                         const targetEntityName = req.target.name.split('.').pop()
                         const fromEntityName = fromClause.ref[0].id.split('.').pop()
 
-                        LOG.debug('targetEntityName:', targetEntityName, 'fromEntityName:', fromEntityName)
-
                         // If the entity names are different, this is a navigation path
                         if (targetEntityName !== fromEntityName) {
-                            LOG.debug('Navigation path detected (entity names differ), will add isDeleted filter')
-                            // Continue to add filter (don't return)
+                            // Navigation path detected, continue to add filter
                         } else if (!isNavigationPath) {
-                            LOG.debug('By-key access detected (same entity, no navigation), skipping isDeleted filter')
+                            // By-key access to the same entity, skip filtering
+                            LOG.debug('By-key access detected, skipping isDeleted filter')
                             return
                         }
                     } else if (!isNavigationPath) {
-                        LOG.debug('By-key access detected (from.ref[0].where exists), skipping isDeleted filter')
+                        LOG.debug('By-key access detected, skipping isDeleted filter')
                         return
-                    } else {
-                        LOG.debug('Navigation path detected (ref.length > 1), will add isDeleted filter')
                     }
                 }
 
