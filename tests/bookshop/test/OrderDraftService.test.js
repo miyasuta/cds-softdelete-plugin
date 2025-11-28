@@ -177,6 +177,40 @@ describe('OrderDraftService - Draft-enabled Cascade Soft Delete Tests', () => {
 
   describe('Draft edit mode deletion (Object Page scenario)', () => {
 
+    it('should not return deleted items when reading via active Order navigation path', async () => {
+      // This test verifies the bug: After deleting an item in draft mode and activating,
+      // reading Orders(IsActiveEntity=true)/items should NOT include the deleted item
+      const orderID = 'd0044001-0001-0001-0001-000000000001'
+      const item1ID = 'd0044001-0001-0001-0001-000000000011'
+      const item2ID = 'd0044001-0001-0001-0001-000000000012'
+
+      await createAndActivateOrderWithItems(orderID, item1ID, item2ID)
+
+      // Edit the order (create draft)
+      await POST(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=true)/OrderDraftService.draftEdit`, {
+        PreserveChanges: true
+      })
+
+      // Delete item1 in draft mode (simulating Object Page deletion)
+      await DELETE(`/odata/v4/order-draft/OrderItems(ID=${item1ID},IsActiveEntity=false)`)
+
+      // Activate the draft
+      await POST(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=false)/OrderDraftService.draftActivate`)
+
+      // Read items via navigation path from active Order (this is what UI does on refresh)
+      const { data: itemsViaNav } = await GET(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=true)/items`)
+
+      // The deleted item should NOT be included
+      expect(itemsViaNav.value).to.have.lengthOf(1)
+      expect(itemsViaNav.value[0].ID).to.equal(item2ID)
+      expect(itemsViaNav.value[0].isDeleted).to.be.false
+
+      // Verify deleted item is actually soft deleted
+      const { data: deletedItems } = await GET(`/odata/v4/order-draft/OrderItems?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${item1ID}`)
+      expect(deletedItems.value).to.have.lengthOf(1)
+      expect(deletedItems.value[0].isDeleted).to.be.true
+    })
+
     it('should handle deletion via navigation path (Orders/items)', async () => {
       // This test replicates the UI deletion pattern: DELETE Orders(...)/items(...)
       // When deleting via navigation, req.data may contain parent keys

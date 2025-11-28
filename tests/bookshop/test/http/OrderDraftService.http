@@ -1,0 +1,189 @@
+@server=http://localhost:4004
+@username=alice
+@password=
+
+
+### Orders
+# @name Orders_GET
+GET {{server}}/odata/v4/order-draft/Orders
+Authorization: Basic {{username}}:{{password}}
+
+### 1. Orders Draft POST
+# @name Orders_Draft_POST
+POST {{server}}/odata/v4/order-draft/Orders
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+{
+  "total": 1650100.23,
+  "items": [
+    {
+      "ID": "76527819-19b4-4275-bbda-63dfb30ecc79",
+      "quantity": 29
+    },
+    {
+      "ID": "76527828-02d9-4dca-a440-591c8d7780f4",
+      "quantity": 60
+    }
+  ]
+}
+
+
+### Result from POST request above
+@draftID={{Orders_Draft_POST.response.body.$.ID}}
+
+### 2. Orders Draft Activate
+# @name Orders_Draft_Activate
+POST {{server}}/odata/v4/order-draft/Orders(ID={{draftID}},IsActiveEntity=false)/OrderDraftService.draftActivate
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+{}
+
+### 3. Orders Draft Prepare
+# @name Orders_Draft_Prepare
+POST {{server}}/odata/v4/order-draft/Orders(ID={{draftID}},IsActiveEntity=true)/OrderDraftService.draftEdit
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+{}
+
+
+### 4. Delete OrderItems
+# @name OrderItems_DELETE
+DELETE {{server}}/odata/v4/order-draft/Orders(ID={{draftID}},IsActiveEntity=false)/items(ID=76527819-19b4-4275-bbda-63dfb30ecc79,IsActiveEntity=false)
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+### 5. Orders Draft Activate
+# @name Orders_Draft_Activate
+POST {{server}}/odata/v4/order-draft/Orders(ID={{draftID}},IsActiveEntity=false)/OrderDraftService.draftActivate
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+{}
+
+### 6. Get Order and items
+GET {{server}}/odata/v4/order-draft/Orders(ID={{draftID}},IsActiveEntity=true)/items
+Authorization: Basic {{username}}:{{password}}
+
+
+
+
+
+### OrderItems
+# @name OrderItems_GET
+GET {{server}}/odata/v4/order-draft/OrderItems
+Authorization: Basic {{username}}:{{password}}
+
+
+### OrderItems
+# @name OrderItems_POST
+POST {{server}}/odata/v4/order-draft/OrderItems
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+{
+  "ID": "76527819-19b4-4275-bbda-63dfb30ecc79",
+  "quantity": 29,
+  "notes": [
+    {
+      "ID": "24323600-c2d1-4eb0-a1fe-d22658463522",
+      "text": "text-24323600",
+      "isDeleted": true,
+      "deletedAt": "2019-02-06T15:00:00.000Z",
+      "deletedBy": "deletedBy-24323600"
+    },
+    {
+      "ID": "24323601-aa77-4475-b617-bc656418ba90",
+      "text": "text-24323601",
+      "isDeleted": false,
+      "deletedAt": "2008-02-16T15:00:00.000Z",
+      "deletedBy": "deletedBy-24323601"
+    }
+  ],
+  "isDeleted": false,
+  "deletedAt": "2006-04-20T15:00:00.000Z",
+  "deletedBy": "deletedBy-7652781"
+}
+
+
+### OrderItems
+# @name OrderItems_PATCH
+PATCH {{server}}/odata/v4/order-draft/OrderItems/76527819-19b4-4275-bbda-63dfb30ecc79
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+{
+  "ID": "76527819-19b4-4275-bbda-63dfb30ecc79",
+  "quantity": 29,
+  "notes": [
+    {
+      "ID": "24323600-c2d1-4eb0-a1fe-d22658463522",
+      "text": "text-24323600",
+      "isDeleted": true,
+      "deletedAt": "2019-02-06T15:00:00.000Z",
+      "deletedBy": "deletedBy-24323600"
+    },
+    {
+      "ID": "24323601-aa77-4475-b617-bc656418ba90",
+      "text": "text-24323601",
+      "isDeleted": false,
+      "deletedAt": "2008-02-16T15:00:00.000Z",
+      "deletedBy": "deletedBy-24323601"
+    }
+  ],
+  "isDeleted": false,
+  "deletedAt": "2006-04-20T15:00:00.000Z",
+  "deletedBy": "deletedBy-7652781"
+}
+
+
+### OrderItems
+# @name OrderItems_DELETE
+DELETE {{server}}/odata/v4/order-draft/OrderItems/76527819-19b4-4275-bbda-63dfb30ecc79
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+
+### OrderItemNotes
+# @name OrderItemNotes_GET
+GET {{server}}/odata/v4/order-draft/OrderItemNotes
+Authorization: Basic {{username}}:{{password}}
+
+
+### OrderItemNotes
+# @name OrderItemNotes_POST
+POST {{server}}/odata/v4/order-draft/OrderItemNotes
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+{
+  "ID": "24323600-c2d1-4eb0-a1fe-d22658463522",
+  "text": "text-24323600",
+  "isDeleted": true,
+  "deletedAt": "2019-02-06T15:00:00.000Z",
+  "deletedBy": "deletedBy-24323600"
+}
+
+
+### OrderItemNotes
+# @name OrderItemNotes_PATCH
+PATCH {{server}}/odata/v4/order-draft/OrderItemNotes/24323600-c2d1-4eb0-a1fe-d22658463522
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}
+
+{
+  "ID": "24323600-c2d1-4eb0-a1fe-d22658463522",
+  "text": "text-24323600",
+  "isDeleted": true,
+  "deletedAt": "2019-02-06T15:00:00.000Z",
+  "deletedBy": "deletedBy-24323600"
+}
+
+
+### OrderItemNotes
+# @name OrderItemNotes_DELETE
+DELETE {{server}}/odata/v4/order-draft/OrderItemNotes/24323600-c2d1-4eb0-a1fe-d22658463522
+Content-Type: application/json
+Authorization: Basic {{username}}:{{password}}

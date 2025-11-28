@@ -112,13 +112,51 @@ cds.once('served', () => {
                 const whereClause = req.query?.SELECT?.where
                 const fromClause = req.query?.SELECT?.from
 
-                // Skip adding isDeleted filter if this is a by-key access
+                // Skip adding isDeleted filter if this is a by-key access to the target entity
                 // When accessing by key (e.g., Books(ID=1) or Books(ID=1,IsActiveEntity=true)),
                 // the from clause will have a where condition: {ref: [{id: "Entity", where: [...]}]}
-                // This indicates direct key-based access to a specific record
+                // However, for navigation paths (e.g., Orders(ID=1)/items), the from.ref[0].where
+                // refers to the parent entity, not the target. We should only skip filtering if
+                // the target entity is being accessed by key directly (not via navigation).
                 if (fromClause?.ref?.[0]?.where) {
-                    LOG.debug('By-key access detected (from.ref[0].where exists), skipping isDeleted filter')
-                    return
+                    // Check if this is a direct by-key access to the target entity
+                    // We need to verify that the entity being accessed (in fromClause) matches the target entity
+                    // For navigation paths like Orders(ID=1)/items:
+                    //   - req.target.name might be "OrderDraftService.OrderItems"
+                    //   - fromClause.ref[0].id might be "OrderDraftService.OrderItems"
+                    //   BUT the query is actually accessing items through the Orders navigation
+                    //
+                    // The key insight: If there's a navigation involved, the columns will be different from "*"
+                    // or the query structure will indicate a navigation rather than direct entity access
+                    const isNavigationPath = fromClause.ref.length > 1
+                    LOG.debug('fromClause.ref:', JSON.stringify(fromClause.ref))
+                    LOG.debug('fromClause.ref.length:', fromClause.ref.length)
+                    LOG.debug('req.target.name:', req.target.name)
+
+                    // Additional check: if fromClause.ref[0] has an 'id' property, compare it with target name
+                    if (fromClause.ref[0].id) {
+                        LOG.debug('fromClause.ref[0].id:', fromClause.ref[0].id)
+
+                        // Extract entity name without service prefix for comparison
+                        const targetEntityName = req.target.name.split('.').pop()
+                        const fromEntityName = fromClause.ref[0].id.split('.').pop()
+
+                        LOG.debug('targetEntityName:', targetEntityName, 'fromEntityName:', fromEntityName)
+
+                        // If the entity names are different, this is a navigation path
+                        if (targetEntityName !== fromEntityName) {
+                            LOG.debug('Navigation path detected (entity names differ), will add isDeleted filter')
+                            // Continue to add filter (don't return)
+                        } else if (!isNavigationPath) {
+                            LOG.debug('By-key access detected (same entity, no navigation), skipping isDeleted filter')
+                            return
+                        }
+                    } else if (!isNavigationPath) {
+                        LOG.debug('By-key access detected (from.ref[0].where exists), skipping isDeleted filter')
+                        return
+                    } else {
+                        LOG.debug('Navigation path detected (ref.length > 1), will add isDeleted filter')
+                    }
                 }
 
                 if (!hasIsDeletedInWhere(whereClause)) {
