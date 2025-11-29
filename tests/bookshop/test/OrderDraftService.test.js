@@ -319,4 +319,111 @@ describe('OrderDraftService - Draft-enabled Cascade Soft Delete Tests', () => {
 
   })
 
+  describe('Navigation path access to soft-deleted parent (Object Page scenario)', () => {
+
+    it('should display items when accessing soft-deleted Order via navigation path', async () => {
+      // This test reproduces the issue reported:
+      // When accessing a soft-deleted Order's items via navigation path
+      // (Orders(ID=xxx,IsActiveEntity=true)/items), the items should be displayed
+      // because the parent Order is accessible (by-key access allows soft-deleted records)
+
+      const orderID = 'd0070001-0001-0001-0001-000000000001'
+      const item1ID = 'd0070001-0001-0001-0001-000000000011'
+      const item2ID = 'd0070001-0001-0001-0001-000000000012'
+
+      await createAndActivateOrderWithItems(orderID, item1ID, item2ID)
+
+      // Soft delete the order (and cascade to items)
+      await DELETE(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=true)`)
+
+      // Verify order is soft deleted but accessible via by-key access
+      const { data: orderData } = await GET(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=true)`)
+      expect(orderData.ID).to.equal(orderID)
+      expect(orderData.isDeleted).to.be.true
+
+      // Access items via navigation path from soft-deleted Order
+      // This simulates Object Page accessing items of a deleted Order
+      const { data: itemsViaNav } = await GET(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=true)/items`)
+
+      // Items should be displayed with isDeleted=true
+      expect(itemsViaNav.value).to.have.lengthOf(2)
+      expect(itemsViaNav.value[0].isDeleted).to.be.true
+      expect(itemsViaNav.value[1].isDeleted).to.be.true
+    })
+
+    it('should display notes when accessing soft-deleted OrderItem via navigation path (3-level)', async () => {
+      // This test verifies 3-level navigation path behavior:
+      // Order (soft-deleted) -> OrderItem (soft-deleted) -> OrderItemNotes (soft-deleted)
+      // When accessing notes via OrderItems(ID=xxx)/notes, the notes should be displayed
+      // because the parent OrderItem is accessible via by-key access
+
+      const orderID = 'd0080001-0001-0001-0001-000000000001'
+      const item1ID = 'd0080001-0001-0001-0001-000000000011'
+      const item2ID = 'd0080001-0001-0001-0001-000000000012'
+      const note1ID = 'd0080001-0001-0001-0001-000000000021'
+      const note2ID = 'd0080001-0001-0001-0001-000000000022'
+      const note3ID = 'd0080001-0001-0001-0001-000000000023'
+
+      await createAndActivateOrderWithItemsAndNotes(orderID, item1ID, item2ID, note1ID, note2ID, note3ID)
+
+      // Soft delete the order (cascades to items and notes)
+      await DELETE(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=true)`)
+
+      // Verify order is soft deleted
+      const { data: orderData } = await GET(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=true)`)
+      expect(orderData.ID).to.equal(orderID)
+      expect(orderData.isDeleted).to.be.true
+
+      // Verify item1 is soft deleted but accessible via by-key access
+      const { data: item1Data } = await GET(`/odata/v4/order-draft/OrderItems(ID=${item1ID},IsActiveEntity=true)`)
+      expect(item1Data.ID).to.equal(item1ID)
+      expect(item1Data.isDeleted).to.be.true
+
+      // Access notes via navigation path from soft-deleted OrderItem
+      const { data: notesViaNav } = await GET(`/odata/v4/order-draft/OrderItems(ID=${item1ID},IsActiveEntity=true)/notes`)
+
+      // Notes should be displayed with isDeleted=true
+      expect(notesViaNav.value).to.have.lengthOf(2)
+      const noteIDs = notesViaNav.value.map(note => note.ID)
+      expect(noteIDs).to.include(note1ID)
+      expect(noteIDs).to.include(note2ID)
+      expect(notesViaNav.value[0].isDeleted).to.be.true
+      expect(notesViaNav.value[1].isDeleted).to.be.true
+    })
+
+    it('should display notes when accessing via 2-level navigation path from soft-deleted Order', async () => {
+      // This test verifies 2-level navigation path behavior:
+      // Orders(ID=xxx)/items(ID=yyy)/notes should display soft-deleted notes
+      // when both Order and OrderItem are soft-deleted
+
+      const orderID = 'd0090001-0001-0001-0001-000000000001'
+      const item1ID = 'd0090001-0001-0001-0001-000000000011'
+      const item2ID = 'd0090001-0001-0001-0001-000000000012'
+      const note1ID = 'd0090001-0001-0001-0001-000000000021'
+      const note2ID = 'd0090001-0001-0001-0001-000000000022'
+      const note3ID = 'd0090001-0001-0001-0001-000000000023'
+
+      await createAndActivateOrderWithItemsAndNotes(orderID, item1ID, item2ID, note1ID, note2ID, note3ID)
+
+      // Soft delete the order (cascades to items and notes)
+      await DELETE(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=true)`)
+
+      // Verify order is soft deleted
+      const { data: orderData } = await GET(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=true)`)
+      expect(orderData.isDeleted).to.be.true
+
+      // Access notes via 2-level navigation path: Orders(...)/items(...)/notes
+      const { data: notesViaNav } = await GET(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=true)/items(ID=${item1ID},IsActiveEntity=true)/notes`)
+
+      // Notes should be displayed with isDeleted=true
+      expect(notesViaNav.value).to.have.lengthOf(2)
+      const noteIDs = notesViaNav.value.map(note => note.ID)
+      expect(noteIDs).to.include(note1ID)
+      expect(noteIDs).to.include(note2ID)
+      expect(notesViaNav.value[0].isDeleted).to.be.true
+      expect(notesViaNav.value[1].isDeleted).to.be.true
+    })
+
+  })
+
 })

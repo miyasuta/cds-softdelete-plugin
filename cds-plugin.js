@@ -100,7 +100,7 @@ cds.once('served', () => {
             }
 
             // Automatically filter out soft-deleted records on READ for soft-delete enabled entities
-            srv.before('READ', targets, (req) => {
+            srv.before('READ', targets, async (req) => {
                 // Skip filtering for draft entities
                 // Draft entities need to see soft-deleted records so they can be activated
                 if (req.target?.name?.endsWith('.drafts')) {
@@ -118,6 +118,9 @@ cds.once('served', () => {
                 // However, for navigation paths (e.g., Orders(ID=1)/items), the from.ref[0].where
                 // refers to the parent entity, not the target. We should only skip filtering if
                 // the target entity is being accessed by key directly (not via navigation).
+                let isNavigationPath = false
+                let parentIsDeletedValue = null
+
                 if (fromClause?.ref?.[0]?.where) {
                     // Check if this is a direct by-key access to the target entity
                     // We need to verify that the entity being accessed (in fromClause) matches the target entity
@@ -127,7 +130,7 @@ cds.once('served', () => {
                     //   - The query is accessing items through the Orders navigation
                     //
                     // Strategy: Check if fromClause.ref has multiple elements OR if the entity names differ
-                    const isNavigationPath = fromClause.ref.length > 1
+                    isNavigationPath = fromClause.ref.length > 1
 
                     // Additional check: if fromClause.ref[0] has an 'id' property, compare it with target name
                     if (fromClause.ref[0].id) {
@@ -137,7 +140,26 @@ cds.once('served', () => {
 
                         // If the entity names are different, this is a navigation path
                         if (targetEntityName !== fromEntityName) {
-                            // Navigation path detected, continue to add filter
+                            // Navigation path detected
+                            isNavigationPath = true
+
+                            // Check if parent entity has soft delete fields
+                            const parentEntityFullName = fromClause.ref[0].id
+                            const parentEntity = cds.model.definitions[parentEntityFullName]
+
+                            if (parentEntity?.elements?.isDeleted) {
+                                // Parent has soft delete, check its isDeleted status
+                                try {
+                                    const parentKeyWhere = fromClause.ref[0].where
+                                    const result = await SELECT.one.from(parentEntity).columns('isDeleted').where(parentKeyWhere)
+                                    if (result) {
+                                        parentIsDeletedValue = result.isDeleted
+                                        LOG.debug(`Navigation path: parent isDeleted = ${parentIsDeletedValue}`)
+                                    }
+                                } catch (error) {
+                                    LOG.debug(`Could not fetch parent isDeleted value: ${error.message}`)
+                                }
+                            }
                         } else if (!isNavigationPath) {
                             // By-key access to the same entity, skip filtering
                             LOG.debug('By-key access detected, skipping isDeleted filter')
@@ -150,18 +172,23 @@ cds.once('served', () => {
                 }
 
                 if (!hasIsDeletedInWhere(whereClause)) {
-                    // Add isDeleted = false to the filter to exclude soft-deleted records
+                    // Determine which isDeleted value to use
+                    // For navigation paths from soft-deleted parents, use parent's isDeleted value
+                    // Otherwise, use false to exclude soft-deleted records
+                    const isDeletedValue = (isNavigationPath && parentIsDeletedValue !== null) ? parentIsDeletedValue : false
+
+                    // Add isDeleted filter to exclude/include soft-deleted records
                     if (!req.query.SELECT.where) {
-                        req.query.SELECT.where = [{ ref: ['isDeleted'] }, '=', { val: false }]
+                        req.query.SELECT.where = [{ ref: ['isDeleted'] }, '=', { val: isDeletedValue }]
                     } else {
                         // Wrap existing where clause and add AND condition
                         req.query.SELECT.where = [
                             '(', ...req.query.SELECT.where, ')',
                             'and',
-                            { ref: ['isDeleted'] }, '=', { val: false }
+                            { ref: ['isDeleted'] }, '=', { val: isDeletedValue }
                         ]
                     }
-                    LOG.debug('Filtering out soft deleted records')
+                    LOG.debug(`Filtering records with isDeleted = ${isDeletedValue}`)
                 }
             })
 
