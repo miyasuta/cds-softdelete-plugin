@@ -426,4 +426,143 @@ describe('OrderDraftService - Draft-enabled Cascade Soft Delete Tests', () => {
 
   })
 
+  describe('Prevent overwriting soft-deleted child records', () => {
+
+    it('should NOT update deletedAt/deletedBy when cascading to already soft-deleted Items', async () => {
+      // Test scenario:
+      // 1. Create Order with Items
+      // 2. Delete Item in draft mode and activate (Item gets deletedAt/deletedBy)
+      // 3. Delete Order (should cascade but NOT overwrite Item's deletedAt/deletedBy)
+      const orderID = 'd0100001-0001-0001-0001-000000000001'
+      const item1ID = 'd0100001-0001-0001-0001-000000000011'
+      const item2ID = 'd0100001-0001-0001-0001-000000000012'
+
+      // Step 1: Create and activate Order with Items
+      await createAndActivateOrderWithItems(orderID, item1ID, item2ID)
+
+      // Step 2: Edit Order, delete Item1 in draft mode, and activate
+      await POST(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=true)/OrderDraftService.draftEdit`, {
+        PreserveChanges: true
+      })
+
+      // Delete item1 in draft mode (simulating Object Page edit mode deletion)
+      await DELETE(`/odata/v4/order-draft/OrderItems(ID=${item1ID},IsActiveEntity=false)`)
+
+      // Activate the draft
+      await POST(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=false)/OrderDraftService.draftActivate`)
+
+      // Verify item1 is soft deleted and get its deletedAt/deletedBy
+      const { data: item1BeforeDelete } = await GET(`/odata/v4/order-draft/OrderItems?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${item1ID}`)
+      expect(item1BeforeDelete.value).to.have.lengthOf(1)
+      expect(item1BeforeDelete.value[0].isDeleted).to.be.true
+      const originalDeletedAt = item1BeforeDelete.value[0].deletedAt
+      const originalDeletedBy = item1BeforeDelete.value[0].deletedBy
+
+      // Record deletion time for item1
+      console.log(`Item1 deleted at: ${originalDeletedAt}, by: ${originalDeletedBy}`)
+
+      // Wait a moment to ensure timestamps would be different
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Step 3: Delete the Order (should cascade to Items but NOT update already-deleted Item1)
+      await DELETE(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=true)`)
+
+      // Verify Order is soft deleted
+      const { data: orderData } = await GET(`/odata/v4/order-draft/Orders?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${orderID}`)
+      expect(orderData.value).to.have.lengthOf(1)
+      expect(orderData.value[0].isDeleted).to.be.true
+
+      // Verify Item1's deletedAt/deletedBy are NOT overwritten
+      const { data: item1AfterDelete } = await GET(`/odata/v4/order-draft/OrderItems?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${item1ID}`)
+      expect(item1AfterDelete.value).to.have.lengthOf(1)
+
+      console.log(`Item1 after Order delete - deletedAt: ${item1AfterDelete.value[0].deletedAt}, deletedBy: ${item1AfterDelete.value[0].deletedBy}`)
+
+      // CRITICAL ASSERTION: deletedAt and deletedBy should remain unchanged
+      expect(item1AfterDelete.value[0].deletedAt).to.equal(originalDeletedAt)
+      expect(item1AfterDelete.value[0].deletedBy).to.equal(originalDeletedBy)
+
+      // Verify Item2 is soft deleted with Order's deletion timestamp
+      const { data: item2AfterDelete } = await GET(`/odata/v4/order-draft/OrderItems?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${item2ID}`)
+      expect(item2AfterDelete.value).to.have.lengthOf(1)
+      expect(item2AfterDelete.value[0].isDeleted).to.be.true
+      // Item2's deletedAt should be different from Item1's (as it was deleted with Order)
+      expect(item2AfterDelete.value[0].deletedAt).to.not.equal(originalDeletedAt)
+    })
+
+    it('should NOT update deletedAt/deletedBy when cascading to already soft-deleted Notes (3-level)', async () => {
+      // Test scenario for 3-level cascade:
+      // 1. Create Order with Items and Notes
+      // 2. Delete Item1 (and its Notes) in draft mode and activate
+      // 3. Delete Order (should cascade but NOT overwrite already-deleted Item1 and its Notes)
+      const orderID = 'd0110001-0001-0001-0001-000000000001'
+      const item1ID = 'd0110001-0001-0001-0001-000000000011'
+      const item2ID = 'd0110001-0001-0001-0001-000000000012'
+      const note1ID = 'd0110001-0001-0001-0001-000000000021'
+      const note2ID = 'd0110001-0001-0001-0001-000000000022'
+      const note3ID = 'd0110001-0001-0001-0001-000000000023'
+
+      // Step 1: Create and activate Order with Items and Notes
+      await createAndActivateOrderWithItemsAndNotes(orderID, item1ID, item2ID, note1ID, note2ID, note3ID)
+
+      // Step 2: Edit Order, delete Item1 (with Notes) in draft mode, and activate
+      await POST(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=true)/OrderDraftService.draftEdit`, {
+        PreserveChanges: true
+      })
+
+      // Delete item1 in draft mode (this will cascade to note1 and note2)
+      await DELETE(`/odata/v4/order-draft/OrderItems(ID=${item1ID},IsActiveEntity=false)`)
+
+      // Activate the draft
+      await POST(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=false)/OrderDraftService.draftActivate`)
+
+      // Get original deletedAt/deletedBy for Item1 and its Notes
+      const { data: item1Before } = await GET(`/odata/v4/order-draft/OrderItems?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${item1ID}`)
+      expect(item1Before.value).to.have.lengthOf(1)
+      const item1OriginalDeletedAt = item1Before.value[0].deletedAt
+      const item1OriginalDeletedBy = item1Before.value[0].deletedBy
+
+      const { data: notesBeforeOrderDelete } = await GET(`/odata/v4/order-draft/OrderItemNotes?$filter=isDeleted%20eq%20true`)
+      const note1Before = notesBeforeOrderDelete.value.find(note => note.ID === note1ID)
+      const note2Before = notesBeforeOrderDelete.value.find(note => note.ID === note2ID)
+      expect(note1Before).to.not.be.undefined
+      expect(note2Before).to.not.be.undefined
+      const note1OriginalDeletedAt = note1Before.deletedAt
+      const note2OriginalDeletedAt = note2Before.deletedAt
+
+      // Wait to ensure timestamps would be different
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Step 3: Delete the Order (should cascade to Item2 and Note3, but NOT update Item1, Note1, Note2)
+      await DELETE(`/odata/v4/order-draft/Orders(ID=${orderID},IsActiveEntity=true)`)
+
+      // Verify Item1's deletedAt/deletedBy are NOT overwritten
+      const { data: item1After } = await GET(`/odata/v4/order-draft/OrderItems?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${item1ID}`)
+      expect(item1After.value).to.have.lengthOf(1)
+      expect(item1After.value[0].deletedAt).to.equal(item1OriginalDeletedAt)
+      expect(item1After.value[0].deletedBy).to.equal(item1OriginalDeletedBy)
+
+      // Verify Note1 and Note2's deletedAt are NOT overwritten
+      const { data: notesAfter } = await GET(`/odata/v4/order-draft/OrderItemNotes?$filter=isDeleted%20eq%20true`)
+      const note1After = notesAfter.value.find(note => note.ID === note1ID)
+      const note2After = notesAfter.value.find(note => note.ID === note2ID)
+      expect(note1After.deletedAt).to.equal(note1OriginalDeletedAt)
+      expect(note2After.deletedAt).to.equal(note2OriginalDeletedAt)
+
+      // Verify Item2 and Note3 are soft deleted with Order's deletion timestamp
+      const { data: item2After } = await GET(`/odata/v4/order-draft/OrderItems?$filter=isDeleted%20eq%20true%20and%20ID%20eq%20${item2ID}`)
+      expect(item2After.value).to.have.lengthOf(1)
+      expect(item2After.value[0].isDeleted).to.be.true
+      // Item2's deletedAt should be different from Item1's
+      expect(item2After.value[0].deletedAt).to.not.equal(item1OriginalDeletedAt)
+
+      const note3After = notesAfter.value.find(note => note.ID === note3ID)
+      expect(note3After).to.not.be.undefined
+      expect(note3After.isDeleted).to.be.true
+      // Note3's deletedAt should be different from Note1's
+      expect(note3After.deletedAt).to.not.equal(note1OriginalDeletedAt)
+    })
+
+  })
+
 })
