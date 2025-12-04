@@ -110,46 +110,7 @@ describe('ドラフト照会のテストケース', () => {
     })
   })
 
-  describe('READ-D-05: ドラフト子一覧（削除済のみ）', () => {
-    it('$filter=isDeleted eq true で削除済のみ返る', async () => {
-      const orderID = 'D5'
-      const item1ID = 'DI51'
-      const item2ID = 'DI52'
-
-      // 前提
-      await POST(`/odata/v4/order-draft/Orders`, {
-        ID: orderID,
-        createdAt: new Date().toISOString(),
-        total: 100.00,
-        items: [
-          { ID: item1ID, quantity: 5 },
-          { ID: item2ID, quantity: 10 }
-        ]
-      })
-
-      // ドラフトを有効化
-      await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)/OrderDraftService.draftActivate`)
-
-      // アクティブを再度ドラフト編集
-      await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=true)/OrderDraftService.draftEdit`, {
-        PreserveChanges: true
-      })
-
-      // DI52を削除
-      await DELETE(`/odata/v4/order-draft/OrderItems(ID='${item2ID}',IsActiveEntity=false)`)
-
-      // 操作: /OrderItems_draft?$filter=isDeleted eq true
-      const { data } = await GET(`/odata/v4/order-draft/OrderItems?$filter=isDeleted eq true`)
-
-      // 期待結果: DI52 のみ返る
-      const result = data.value.filter(i => [item1ID, item2ID].includes(i.ID))
-      expect(result).to.have.lengthOf(1)
-      expect(result[0].ID).to.equal(item2ID)
-      expect(result[0].isDeleted).to.be.true
-    })
-  })
-
-  describe('READ-D-06: ドラフト子キー指定（削除済でも返る）', () => {
+  describe('READ-D-05: ドラフト子キー指定（削除済でも返る）', () => {
     it('ドラフト子キー指定で削除済も返る', async () => {
       const orderID = 'D6'
       const itemID = 'DI6'
@@ -184,7 +145,7 @@ describe('ドラフト照会のテストケース', () => {
     })
   })
 
-  describe('READ-D-07: 親ドラフト未削除 + $expand（削除済子も含む）', () => {
+  describe('READ-D-06: 親ドラフト未削除 + $expand（削除済子も含む）', () => {
     it('親ドラフト未削除の $expand でも削除済子が含まれる（ドラフト編集中の削除を確認可能）', async () => {
       const orderID = 'D7'
       const item1ID = 'DI71'
@@ -226,7 +187,7 @@ describe('ドラフト照会のテストケース', () => {
     })
   })
 
-  describe('READ-D-08: 親ドラフト未削除 + Navigation + isDeleted=true', () => {
+  describe('READ-D-07: 親ドラフト未削除 + Navigation + isDeleted=true', () => {
     it('Navigation + フィルタで削除済のみ返す', async () => {
       const orderID = 'D8'
       const item1ID = 'DI81'

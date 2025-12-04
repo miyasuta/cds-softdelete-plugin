@@ -41,10 +41,9 @@
 - READ-D-02: ドラフトルート + isDeleted=true フィルタ（該当なし）
 - READ-D-03: ドラフトルートキー指定（未削除）
 - READ-D-04: ドラフト子一覧（削除済も含む）— ドラフト編集中の削除を確認可能
-- READ-D-05: ドラフト子一覧（削除済のみ）— $filter=isDeleted eq true で明示的にフィルタ
-- READ-D-06: ドラフト子キー指定（削除済でも返る）
-- READ-D-07: 親ドラフト未削除 + `$expand`（削除済子も含む）— ドラフト編集中の削除を確認可能
-- READ-D-08: 親ドラフト未削除 + Navigation + isDeleted=true
+- READ-D-05: ドラフト子キー指定（削除済でも返る）
+- READ-D-06: 親ドラフト未削除 + `$expand`（削除済子も含む）— ドラフト編集中の削除を確認可能
+- READ-D-07: 親ドラフト未削除 + Navigation + isDeleted=true
 
 ### 4. ドラフト有効化のテストケース（ACT-xx）
 - ACT-01: 新規ドラフト子を isDeleted=true にして有効化（アクティブ未作成）
@@ -388,18 +387,7 @@
 
 ---
 
-## READ-D-05: ドラフト子一覧（削除済のみ）
-- 目的: 明示的なフィルタで削除済のみを取得できる
-- 操作:
-  - `/OrderItems_draft?$filter=isDeleted eq true`
-- 期待結果:
-  - DI42 のみ返る（明示的なフィルタが機能する）
-  - DI42.isDeleted == true
-- 注記: 現在Issue-02により失敗中（明示的なフィルタが機能しない）
-
----
-
-## READ-D-06: ドラフト子キー指定（削除済でも返る）
+## READ-D-05: ドラフト子キー指定（削除済でも返る）
 - 前提:
   - DI6: true
 - 操作:
@@ -409,7 +397,7 @@
 
 ---
 
-## READ-D-07: 親ドラフト未削除 + `$expand`（削除済子も含む）
+## READ-D-06: 親ドラフト未削除 + `$expand`（削除済子も含む）
 - 目的: ドラフト編集中に削除した子アイテムを $expand で確認できる
 - 前提:
   - D7: false
@@ -424,7 +412,7 @@
 
 ---
 
-## READ-D-08: 親ドラフト未削除 + Navigation + isDeleted=true
+## READ-D-07: 親ドラフト未削除 + Navigation + isDeleted=true
 - 操作:
   - `/Orders_draft('D7')/items?$filter=isDeleted eq true`
 - 期待結果:
