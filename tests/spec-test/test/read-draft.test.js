@@ -3,10 +3,10 @@ const cds = require('@sap/cds')
 const { GET, POST, DELETE, expect, axios } = cds.test(__dirname + '/..')
 axios.defaults.auth = { username: 'alice', password: '' }
 
-describe('ドラフト照会のテストケース', () => {
+describe('Draft read test cases', () => {
 
-  describe('READ-D-01: ドラフトルート一覧（未削除のみ）', () => {
-    it('R1 により isDeleted=false のドラフトのみ返る', async () => {
+  describe('READ-D-01: Draft root list (non-deleted only)', () => {
+    it('By R1, only drafts with isDeleted=false are returned', async () => {
       const orderID = 'D1'
 
       // 前提: D1: isDeleted=false
@@ -27,8 +27,8 @@ describe('ドラフト照会のテストケース', () => {
     })
   })
 
-  describe('READ-D-02: ドラフトルート + isDeleted=true フィルタ（該当なし）', () => {
-    it('仕様上ドラフトルートは論理削除されない', async () => {
+  describe('READ-D-02: Draft root + isDeleted=true filter (no match)', () => {
+    it('Draft roots are not soft deleted per specification', async () => {
       const orderID = 'D2'
 
       // ドラフトを作成
@@ -47,8 +47,8 @@ describe('ドラフト照会のテストケース', () => {
     })
   })
 
-  describe('READ-D-03: ドラフトルートキー指定（未削除）', () => {
-    it('ドラフトルートをキー指定で取得できる', async () => {
+  describe('READ-D-03: Draft root by key (non-deleted)', () => {
+    it('Draft root can be retrieved by key', async () => {
       const orderID = 'D3'
 
       // 前提
@@ -67,8 +67,8 @@ describe('ドラフト照会のテストケース', () => {
     })
   })
 
-  describe('READ-D-04: ドラフト子一覧（削除済も含む）', () => {
-    it('ドラフト子一覧では isDeleted=true も返る（ドラフト編集中の削除を確認可能）', async () => {
+  describe('READ-D-04: Draft children list (including deleted)', () => {
+    it('Draft children list returns isDeleted=true entries (deletions during draft editing are visible)', async () => {
       const orderID = 'D4'
       const item1ID = 'DI41'
       const item2ID = 'DI42'
@@ -110,8 +110,8 @@ describe('ドラフト照会のテストケース', () => {
     })
   })
 
-  describe('READ-D-05: ドラフト子キー指定（削除済でも返る）', () => {
-    it('ドラフト子キー指定で削除済も返る', async () => {
+  describe('READ-D-05: Draft child by key (deleted entries also returned)', () => {
+    it('Draft child by key returns deleted entries', async () => {
       const orderID = 'D6'
       const itemID = 'DI6'
 
@@ -145,8 +145,8 @@ describe('ドラフト照会のテストケース', () => {
     })
   })
 
-  describe('READ-D-06: 親ドラフト未削除 + $expand（削除済子も含む）', () => {
-    it('親ドラフト未削除の $expand でも削除済子が含まれる（ドラフト編集中の削除を確認可能）', async () => {
+  describe('READ-D-06: Non-deleted parent draft + $expand (including deleted children)', () => {
+    it('$expand on non-deleted parent draft includes deleted children (deletions during draft editing are visible)', async () => {
       const orderID = 'D7'
       const item1ID = 'DI71'
       const item2ID = 'DI72'
@@ -187,8 +187,8 @@ describe('ドラフト照会のテストケース', () => {
     })
   })
 
-  describe('READ-D-07: 親ドラフト未削除 + Navigation + isDeleted=true', () => {
-    it('Navigation + フィルタで削除済のみ返す', async () => {
+  describe('READ-D-07: Non-deleted parent draft + Navigation + isDeleted=true', () => {
+    it('Navigation + filter returns only deleted entries', async () => {
       const orderID = 'D8'
       const item1ID = 'DI81'
       const item2ID = 'DI82'

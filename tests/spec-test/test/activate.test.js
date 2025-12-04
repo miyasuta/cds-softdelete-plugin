@@ -3,10 +3,10 @@ const cds = require('@sap/cds')
 const { GET, POST, DELETE, expect, axios } = cds.test(__dirname + '/..')
 axios.defaults.auth = { username: 'alice', password: '' }
 
-describe('ドラフト有効化のテストケース', () => {
+describe('Draft activation test cases', () => {
 
-  describe('ACT-01: 新規ドラフト子を isDeleted=true にして有効化（アクティブ未作成）', () => {
-    it('新規子が isDeleted=true の場合はアクティブに作成されない', async () => {
+  describe('ACT-01: Activate new draft child with isDeleted=true (not created in active)', () => {
+    it('When new child is isDeleted=true, it is not created in active', async () => {
       const orderID = 'A100'
       const itemID = 'DI101'
 
@@ -38,8 +38,8 @@ describe('ドラフト有効化のテストケース', () => {
     })
   })
 
-  describe('ACT-02: 既存子を isDeleted=true にして有効化（アクティブへ反映）', () => {
-    it('既存子の isDeleted=true がアクティブへ反映される', async () => {
+  describe('ACT-02: Activate existing child with isDeleted=true (reflected in active)', () => {
+    it('Existing child isDeleted=true is reflected in active', async () => {
       const orderID = 'A200'
       const itemID = 'AI201'
 

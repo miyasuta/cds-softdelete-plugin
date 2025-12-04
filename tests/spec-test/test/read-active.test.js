@@ -3,10 +3,10 @@ const cds = require('@sap/cds')
 const { GET, POST, DELETE, expect, axios } = cds.test(__dirname + '/..')
 axios.defaults.auth = { username: 'alice', password: '' }
 
-describe('アクティブ照会のテストケース', () => {
+describe('Active read test cases', () => {
 
-  describe('READ-A-01: ルート一覧（削除済み除外）', () => {
-    it('isDeleted 指定なしでは isDeleted=false のみ返ること', async () => {
+  describe('READ-A-01: Root list (deleted excluded)', () => {
+    it('Without isDeleted specified, only isDeleted=false are returned', async () => {
       const orderID1 = 'A1'
       const orderID2 = 'A2'
 
@@ -39,8 +39,8 @@ describe('アクティブ照会のテストケース', () => {
     })
   })
 
-  describe('READ-A-02: 削除済みのみ取得（フィルタ）', () => {
-    it('$filter=isDeleted eq true が有効であること', async () => {
+  describe('READ-A-02: Retrieve only deleted (filter)', () => {
+    it('$filter=isDeleted eq true is effective', async () => {
       const orderID1 = 'A3'
       const orderID2 = 'A4'
 
@@ -72,7 +72,7 @@ describe('アクティブ照会のテストケース', () => {
   })
 
   describe('READ-A-03: $filter=isDeleted eq false', () => {
-    it('明示フィルタでも isDeleted=false のみ返る', async () => {
+    it('Even with explicit filter, only isDeleted=false are returned', async () => {
       const orderID1 = 'A5'
       const orderID2 = 'A6'
 
@@ -103,8 +103,8 @@ describe('アクティブ照会のテストケース', () => {
     })
   })
 
-  describe('READ-A-04: キー指定（未削除）', () => {
-    it('キー指定アクセスは isDeleted に関係なく返す', async () => {
+  describe('READ-A-04: By key (non-deleted)', () => {
+    it('Key-specified access returns regardless of isDeleted', async () => {
       const orderID = 'A7'
 
       // 前提: A7: isDeleted=false
@@ -123,8 +123,8 @@ describe('アクティブ照会のテストケース', () => {
     })
   })
 
-  describe('READ-A-05: キー指定（削除済）', () => {
-    it('削除済みでもキー指定アクセスで返される', async () => {
+  describe('READ-A-05: By key (deleted)', () => {
+    it('Even if deleted, returned via key-specified access', async () => {
       const orderID = 'A8'
 
       // 前提: A8: isDeleted=true
@@ -146,8 +146,8 @@ describe('アクティブ照会のテストケース', () => {
     })
   })
 
-  describe('READ-A-06: キー指定なし判定（フィルタでの疑似キー指定）', () => {
-    it('/Orders?$filter=ID eq \'A1\' は R1/R2 に従うこと', async () => {
+  describe('READ-A-06: Non-key-specified determination (pseudo key via filter)', () => {
+    it('/Orders?$filter=ID eq \'A1\' follows R1/R2', async () => {
       const orderID1 = 'A9'
       const orderID2 = 'A10'
 
@@ -177,8 +177,8 @@ describe('アクティブ照会のテストケース', () => {
     })
   })
 
-  describe('READ-A-07: 子の直接アクセス（未削除）', () => {
-    it('子一覧でも R1 が適用される', async () => {
+  describe('READ-A-07: Direct access to children (non-deleted)', () => {
+    it('R1 is also applied to child list', async () => {
       const orderID = 'A11'
       const item1ID = 'C71'
       const item2ID = 'C72'
@@ -207,8 +207,8 @@ describe('アクティブ照会のテストケース', () => {
     })
   })
 
-  describe('READ-A-08: 子の直接アクセス（削除済）', () => {
-    it('$filter=isDeleted eq true で削除済のみ返る', async () => {
+  describe('READ-A-08: Direct access to children (deleted)', () => {
+    it('$filter=isDeleted eq true returns only deleted', async () => {
       const orderID = 'A12'
       const item1ID = 'C73'
       const item2ID = 'C74'
@@ -237,8 +237,8 @@ describe('アクティブ照会のテストケース', () => {
     })
   })
 
-  describe('READ-A-09: 子キー指定（削除済）', () => {
-    it('子もキー指定アクセスで削除済を返す', async () => {
+  describe('READ-A-09: Child by key (deleted)', () => {
+    it('Child also returns deleted via key-specified access', async () => {
       const orderID = 'A13'
       const itemID = 'C9'
 
@@ -264,8 +264,8 @@ describe('アクティブ照会のテストケース', () => {
     })
   })
 
-  describe('READ-A-10: 親未削除 + $expand（子の削除済除外）', () => {
-    it('親未削除の $expand では R1 が適用される', async () => {
+  describe('READ-A-10: Non-deleted parent + $expand (deleted children excluded)', () => {
+    it('R1 is applied in $expand of non-deleted parent', async () => {
       const orderID = 'N10'
       const item1ID = 'N101'
       const item2ID = 'N102'
@@ -293,8 +293,8 @@ describe('アクティブ照会のテストケース', () => {
     })
   })
 
-  describe('READ-A-11: 親未削除 + Navigation + isDeleted=true', () => {
-    it('Navigation + フィルタなら R2 を適用し削除済のみ返す', async () => {
+  describe('READ-A-11: Non-deleted parent + Navigation + isDeleted=true', () => {
+    it('Navigation + filter applies R2 and returns only deleted', async () => {
       const orderID = 'N11'
       const item1ID = 'N111'
       const item2ID = 'N112'
@@ -322,8 +322,8 @@ describe('アクティブ照会のテストケース', () => {
     })
   })
 
-  describe('READ-A-12: 親削除済 + $expand（削除済子を返す）', () => {
-    it('親削除済では R4 により削除済子が返る', async () => {
+  describe('READ-A-12: Deleted parent + $expand (returns deleted children)', () => {
+    it('When parent is deleted, R4 returns deleted children', async () => {
       const orderID = 'N12'
       const itemID = 'N121'
 
@@ -351,8 +351,8 @@ describe('アクティブ照会のテストケース', () => {
     })
   })
 
-  describe('READ-A-13: 親削除済 + Navigation + isDeleted=false（ヒットなし）', () => {
-    it('カスケード削除済のため未削除子が存在しない', async () => {
+  describe('READ-A-13: Deleted parent + Navigation + isDeleted=false (no hits)', () => {
+    it('No non-deleted children exist due to cascade deletion', async () => {
       const orderID = 'N13'
       const itemID = 'N131'
 
@@ -377,8 +377,8 @@ describe('アクティブ照会のテストケース', () => {
     })
   })
 
-  describe('READ-A-14: 深い階層の$expand（親削除済）', () => {
-    it('親が削除済の場合、$expandで深い階層を展開しても全ての階層が削除済として返る', async () => {
+  describe('READ-A-14: Deep hierarchy $expand (deleted parent)', () => {
+    it('When parent is deleted, expanding deep hierarchy via $expand returns all levels as deleted', async () => {
       const orderID = 'N14'
       const itemID = 'N141'
       const detailID = 'N1411'
@@ -416,8 +416,8 @@ describe('アクティブ照会のテストケース', () => {
     })
   })
 
-  describe('READ-A-15: 複合キー指定（すべてのキー指定）', () => {
-    it('複合キーをすべて指定した場合、R3が適用され isDeleted に関係なく返る', async () => {
+  describe('READ-A-15: Composite key specification (all keys specified)', () => {
+    it('When all composite keys are specified, R3 is applied and returns regardless of isDeleted', async () => {
       const bookID = 1
       const bookVersion = 2
 
@@ -441,8 +441,8 @@ describe('アクティブ照会のテストケース', () => {
     })
   })
 
-  describe('READ-A-16: 複合キー部分指定（キー指定扱いにならない）', () => {
-    it('複合キーの一部のみ指定した場合、R1が適用され isDeleted=false のみ返る', async () => {
+  describe('READ-A-16: Partial composite key specification (not treated as key specification)', () => {
+    it('When only part of composite key is specified, R1 is applied and only isDeleted=false are returned', async () => {
       const bookID = 2
       const bookVersion1 = 1
       const bookVersion2 = 2

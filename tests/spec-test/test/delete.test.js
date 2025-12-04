@@ -3,10 +3,10 @@ const cds = require('@sap/cds')
 const { GET, POST, DELETE, expect, axios } = cds.test(__dirname + '/..')
 axios.defaults.auth = { username: 'alice', password: '' }
 
-describe('削除時のテストケース', () => {
+describe('Deletion test cases', () => {
 
-  describe('DEL-01: アクティブルートの論理削除', () => {
-    it('キー指定 DELETE によりアクティブルートが isDeleted=true になること', async () => {
+  describe('DEL-01: Soft delete of active root entity', () => {
+    it('Active root entity becomes isDeleted=true via key-specified DELETE', async () => {
       const orderID = 'O1'
 
       // 前提: Orders('O1'): isDeleted=false, IsActiveEntity=true
@@ -35,8 +35,8 @@ describe('削除時のテストケース', () => {
     })
   })
 
-  describe('DEL-02: ルート削除による Composition 子カスケード', () => {
-    it('親 DELETE により全 Composition 階層が論理削除されること', async () => {
+  describe('DEL-02: Composition children cascade from root deletion', () => {
+    it('Parent DELETE causes all Composition hierarchy to be soft deleted', async () => {
       const orderID = 'O2'
       const item1ID = 'I21'
       const item2ID = 'I22'
@@ -76,8 +76,8 @@ describe('削除時のテストケース', () => {
     })
   })
 
-  describe('DEL-03: アクティブ子の個別 DELETE', () => {
-    it('子 DELETE により子のみ論理削除され、親は未変更であること', async () => {
+  describe('DEL-03: Individual DELETE of active child', () => {
+    it('Child DELETE soft deletes only the child, parent remains unchanged', async () => {
       const orderID = 'O3'
       const itemID = 'I31'
 
@@ -105,8 +105,8 @@ describe('削除時のテストケース', () => {
     })
   })
 
-  describe('DEL-03-extended: 子削除による孫カスケード', () => {
-    it('子を削除したとき、配下の孫以降もすべてカスケード削除されること', async () => {
+  describe('DEL-03-extended: Grandchild cascade from child deletion', () => {
+    it('When deleting a child, all grandchildren and descendants are cascade deleted', async () => {
       const orderID = 'O3B'
       const itemID = 'I31B'
       const detailID = 'D311B'
@@ -150,8 +150,8 @@ describe('削除時のテストケース', () => {
     })
   })
 
-  describe('DEL-04: ドラフト破棄時は物理削除', () => {
-    it('ドラフト破棄でドラフト行が物理削除され、論理削除されないこと', async () => {
+  describe('DEL-04: Physical deletion on draft discard', () => {
+    it('Draft discard physically deletes draft rows, not soft deleted', async () => {
       const orderID = 'OD4'
       const itemID = 'ID41'
 
@@ -197,8 +197,8 @@ describe('削除時のテストケース', () => {
     })
   })
 
-  describe('DEL-05: ドラフト子削除（isDeleted=true）', () => {
-    it('ドラフト編集中に削除した子に isDeleted=true が設定されること', async () => {
+  describe('DEL-05: Draft child deletion (isDeleted=true)', () => {
+    it('Child deleted during draft editing is set to isDeleted=true', async () => {
       const orderID = 'O5'
       const itemID = 'I51'
 
@@ -238,8 +238,8 @@ describe('削除時のテストケース', () => {
     })
   })
 
-  describe('DEL-05-extended: ドラフト子削除による孫カスケード', () => {
-    it('ドラフトで子を削除したとき、孫もカスケードで isDeleted=true になること', async () => {
+  describe('DEL-05-extended: Grandchild cascade from draft child deletion', () => {
+    it('When deleting a child in draft, grandchildren also cascade to isDeleted=true', async () => {
       const orderID = 'OD5B'
       const itemID = 'ID51B'
       const detailID = 'D511B'
@@ -286,8 +286,8 @@ describe('削除時のテストケース', () => {
     })
   })
 
-  describe('DEL-06: isDeleted=true レコードへの再 DELETE（冪等性）', () => {
-    it('すでに isDeleted=true のレコードに対する DELETE が成功し、副作用がないこと', async () => {
+  describe('DEL-06: Re-DELETE on isDeleted=true record (idempotency)', () => {
+    it('DELETE on already isDeleted=true record succeeds with no side effects', async () => {
       const orderID = 'O6'
 
       // 前提: Orders('O6'): isDeleted=true
