@@ -14,8 +14,7 @@
   "scripts": {
     "start": "cds-serve",
     "test": "node --test",
-    "update": "npm install && npm install --install-links",
-    "test:read-d05": "./test-read-d05.sh"
+    "update": "npm install && npm install --install-links"
   },
   "private": true,
   "cds": {
