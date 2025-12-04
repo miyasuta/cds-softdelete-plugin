@@ -92,11 +92,61 @@ expect(data.value[0].ID).to.equal('DI52')
 expect(data.value[0].isDeleted).to.be.true
 ```
 
-### 原因調査
-プラグインがドラフトエンティティをスキップする際に、何らかの理由でユーザー指定のフィルタも影響を受けている可能性がある。
+### 原因調査結果 (2025-12-05)
+
+#### 調査方法
+curlを使って実際のHTTPリクエストとログを分析：
+- ドラフトオーダーを作成し、アイテムを論理削除
+- `$filter=isDeleted eq true` でクエリ
+- プラグインのデバッグログを確認
+
+#### 根本原因
+**プラグインの `.drafts` チェック ([cds-plugin.js:114](cci:1://file:///home/miyasuta/projects/cds-softdelete-plugin/cds-plugin.js:114:0-114:0)) が不十分**
+
+```javascript
+if (req.target?.name?.endsWith('.drafts')) {
+    LOG.debug('Skipping isDeleted filter for draft entity:', req.target.name)
+    return
+}
+```
+
+このチェックは**内部的な draft テーブル名**（例: `OrderDraftService.OrderItems.drafts`）に対してのみ機能する。
+
+しかし、OData経由でドラフトエンティティにアクセスする場合：
+- URL: `/odata/v4/order-draft/OrderItems?$filter=isDeleted eq true`
+- `req.target.name`: `OrderDraftService.OrderItems` （`.drafts` で終わっていない！）
+- 結果: `.drafts` チェックを**パス**して、自動フィルタ `isDeleted=false` が追加される
+- ユーザー指定の `isDeleted eq true` と矛盾（`isDeleted=true AND isDeleted=false`）
+- 結果として空配列が返される
+
+#### 証拠
+デバッグログから：
+```
+[soft-delete] - Soft deleting draft entity OrderDraftService.OrderItems.drafts
+[soft-delete] - Filtering records with isDeleted = false  <- 自動フィルタが適用されている！
+```
+
+#### 追加の確認事項
+ドラフト対応サービスでは、`IsActiveEntity` パラメータでアクティブ/ドラフトを切り替える：
+- アクティブ: `IsActiveEntity=true` または未指定
+- ドラフト: `IsActiveEntity=false` または draft編集中
+
+プラグインは `IsActiveEntity` を考慮していないため、ドラフトアクセスでも自動フィルタを適用してしまう。
+
+### 修正案
+1. **Option A**: `req.target` の draft 状態を確認する
+   - `req.target.drafts` プロパティの有無をチェック
+   - `req.query` 内の `IsActiveEntity` パラメータを確認
+
+2. **Option B**: `req.event` の context を確認
+   - Draft edit セッション中かどうかを判定
+
+3. **Option C**: ドラフトサービス全体をスキップ
+   - サービス名に "draft" が含まれる場合はスキップ（簡易的だが効果的）
 
 ### ステータス
-- [ ] 未対応
+- [x] 原因特定完了
+- [ ] 修正未実装
 - テスト: READ-D-05 が失敗中
 
 ---
