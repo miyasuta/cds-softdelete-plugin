@@ -10,3 +10,6 @@ todo.md
 
 # Test UI projects
 tests/ordersui/
+
+# Internal documentation
+docs/project/issues.md
