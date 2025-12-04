@@ -72,6 +72,14 @@ cds.once('served', () => {
                     srv.on('DELETE', draftEntity, async (req) => {
                         LOG.info(`Soft deleting draft entity ${draftEntityName}`)
 
+                        // Check if the draft record is already soft deleted (idempotency check)
+                        const existingRecord = await SELECT.one.from(req.target).columns('isDeleted').where(req.data)
+
+                        if (existingRecord && existingRecord.isDeleted === true) {
+                            LOG.debug('Draft record is already soft deleted, skipping update')
+                            return 0
+                        }
+
                         // Set isDeleted=true on the draft entity instead of physical delete
                         // This will be propagated to the active entity when the draft is activated
                         const now = new Date().toISOString()
@@ -236,6 +244,14 @@ cds.once('served', () => {
             // Intercept DELETE requests and perform soft delete instead of physical delete
             srv.on('DELETE', targets, async(req) => {
                 LOG.info(`Soft deleting from ${req.target.name}`)
+
+                // Check if the record is already soft deleted (idempotency check)
+                const existingRecord = await SELECT.one.from(req.target).columns('isDeleted').where(req.data)
+
+                if (existingRecord && existingRecord.isDeleted === true) {
+                    LOG.debug('Record is already soft deleted, skipping update')
+                    return req.reply(204)
+                }
 
                 // Set isDeleted=true and deletedAt=timestamp instead of physically deleting
                 const now = new Date().toISOString()

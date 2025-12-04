@@ -286,8 +286,7 @@ describe('削除時のテストケース', () => {
     })
   })
 
-  describe.skip('DEL-06: isDeleted=true レコードへの再 DELETE（冪等性）', () => {
-    // TODO: プラグインに冪等性チェックを実装後に有効化
+  describe('DEL-06: isDeleted=true レコードへの再 DELETE（冪等性）', () => {
     it('すでに isDeleted=true のレコードに対する DELETE が成功し、副作用がないこと', async () => {
       const orderID = 'O6'
 
