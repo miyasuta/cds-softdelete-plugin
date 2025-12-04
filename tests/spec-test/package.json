@@ -1,0 +1,29 @@
+{
+  "name": "spec-test",
+  "version": "1.0.0",
+  "description": "Test project for cds-softdelete-plugin specification.",
+  "dependencies": {
+    "@sap/cds": "^9",
+    "cds-softdelete-plugin": "file:../../.",
+    "express": "^4"
+  },
+  "devDependencies": {
+    "@cap-js/sqlite": "^2",
+    "@cap-js/cds-test": "^0"
+  },
+  "scripts": {
+    "start": "cds-serve",
+    "test": "node --test",
+    "update": "npm install && npm install --install-links"
+  },
+  "private": true,
+  "cds": {
+    "log": {
+      "levels": {
+        "soft-delete": "debug",
+        "cds": "silent",
+        "odata": "silent"
+      }
+    }
+  }
+}
