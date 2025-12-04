@@ -9,17 +9,17 @@ describe('Draft read test cases', () => {
     it('By R1, only drafts with isDeleted=false are returned', async () => {
       const orderID = 'D1'
 
-      // 前提: D1: isDeleted=false
+      // Prerequisite: D1: isDeleted=false
       await POST(`/odata/v4/order-draft/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
         total: 100.00
       })
 
-      // 操作: GET /OrderService/Orders_draft?$filter=IsActiveEntity eq false
+      // Operation: GET /OrderService/Orders_draft?$filter=IsActiveEntity eq false
       const { data } = await GET(`/odata/v4/order-draft/Orders?$filter=IsActiveEntity eq false`)
 
-      // 期待結果: D1 が返る
+      // Expected result: D1 is returned
       const d1 = data.value.find(o => o.ID === orderID)
       expect(d1).to.not.be.undefined
       expect(d1.isDeleted).to.be.false
@@ -31,17 +31,17 @@ describe('Draft read test cases', () => {
     it('Draft roots are not soft deleted per specification', async () => {
       const orderID = 'D2'
 
-      // ドラフトを作成
+      // Create draft
       await POST(`/odata/v4/order-draft/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
         total: 100.00
       })
 
-      // 操作: GET /OrderService/Orders_draft?$filter=isDeleted eq true
+      // Operation: GET /OrderService/Orders_draft?$filter=isDeleted eq true
       const { data } = await GET(`/odata/v4/order-draft/Orders?$filter=isDeleted eq true`)
 
-      // 期待結果: 空配列（このテストで作成したドラフトは該当しない）
+      // Expected result: Empty array (draft created in this test does not match)
       const result = data.value.filter(o => o.ID === orderID)
       expect(result).to.have.lengthOf(0)
     })
@@ -51,17 +51,17 @@ describe('Draft read test cases', () => {
     it('Draft root can be retrieved by key', async () => {
       const orderID = 'D3'
 
-      // 前提
+      // Prerequisite
       await POST(`/odata/v4/order-draft/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
         total: 100.00
       })
 
-      // 操作: GET /OrderService/Orders_draft('D3')
+      // Operation: GET /OrderService/Orders_draft('D3')
       const { data } = await GET(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)`)
 
-      // 期待結果: D3 が返る
+      // Expected result: D3 is returned
       expect(data.ID).to.equal(orderID)
       expect(data.IsActiveEntity).to.be.false
     })
@@ -73,7 +73,7 @@ describe('Draft read test cases', () => {
       const item1ID = 'DI41'
       const item2ID = 'DI42'
 
-      // 前提: DI41: false, DI42: true
+      // Prerequisite: DI41: false, DI42: true
       await POST(`/odata/v4/order-draft/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
@@ -84,21 +84,21 @@ describe('Draft read test cases', () => {
         ]
       })
 
-      // ドラフトを有効化
+      // Activate draft
       await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)/OrderDraftService.draftActivate`)
 
-      // アクティブを再度ドラフト編集
+      // Edit active as draft again
       await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=true)/OrderDraftService.draftEdit`, {
         PreserveChanges: true
       })
 
-      // DI42を削除
+      // Delete DI42
       await DELETE(`/odata/v4/order-draft/OrderItems(ID='${item2ID}',IsActiveEntity=false)`)
 
-      // 操作: /OrderItems_draft?$filter=IsActiveEntity eq false
+      // Operation: /OrderItems_draft?$filter=IsActiveEntity eq false
       const { data } = await GET(`/odata/v4/order-draft/OrderItems?$filter=IsActiveEntity eq false`)
 
-      // 期待結果: DI41, DI42 の両方が返る（削除済も含む）
+      // Expected result: Both DI41 and DI42 are returned (including deleted)
       const result = data.value.filter(i => [item1ID, item2ID].includes(i.ID))
       expect(result).to.have.lengthOf(2)
 
@@ -115,7 +115,7 @@ describe('Draft read test cases', () => {
       const orderID = 'D6'
       const itemID = 'DI6'
 
-      // 前提: DI6: true
+      // Prerequisite: DI6: true
       await POST(`/odata/v4/order-draft/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
@@ -125,21 +125,21 @@ describe('Draft read test cases', () => {
         ]
       })
 
-      // ドラフトを有効化
+      // Activate draft
       await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)/OrderDraftService.draftActivate`)
 
-      // アクティブを再度ドラフト編集
+      // Edit active as draft again
       await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=true)/OrderDraftService.draftEdit`, {
         PreserveChanges: true
       })
 
-      // DI6を削除
+      // Delete DI6
       await DELETE(`/odata/v4/order-draft/OrderItems(ID='${itemID}',IsActiveEntity=false)`)
 
-      // 操作: /OrderItems_draft('DI6')
+      // Operation: /OrderItems_draft('DI6')
       const { data } = await GET(`/odata/v4/order-draft/OrderItems(ID='${itemID}',IsActiveEntity=false)`)
 
-      // 期待結果: DI6 が返る
+      // Expected result: DI6 is returned
       expect(data.ID).to.equal(itemID)
       expect(data.isDeleted).to.be.true
     })
@@ -151,7 +151,7 @@ describe('Draft read test cases', () => {
       const item1ID = 'DI71'
       const item2ID = 'DI72'
 
-      // 前提: D7: false, DI71: false, DI72: true
+      // Prerequisite: D7: false, DI71: false, DI72: true
       await POST(`/odata/v4/order-draft/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
@@ -162,21 +162,21 @@ describe('Draft read test cases', () => {
         ]
       })
 
-      // ドラフトを有効化
+      // Activate draft
       await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)/OrderDraftService.draftActivate`)
 
-      // アクティブを再度ドラフト編集
+      // Edit active as draft again
       await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=true)/OrderDraftService.draftEdit`, {
         PreserveChanges: true
       })
 
-      // DI72を削除
+      // Delete DI72
       await DELETE(`/odata/v4/order-draft/OrderItems(ID='${item2ID}',IsActiveEntity=false)`)
 
-      // 操作: /Orders_draft('D7')?$expand=items
+      // Operation: /Orders_draft('D7')?$expand=items
       const { data } = await GET(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)?$expand=items`)
 
-      // 期待結果: items には DI71, DI72 の両方が含まれる（削除済も含む）
+      // Expected result: items includes both DI71 and DI72 (including deleted)
       expect(data.items).to.have.lengthOf(2)
 
       const item1 = data.items.find(i => i.ID === item1ID)
@@ -193,7 +193,7 @@ describe('Draft read test cases', () => {
       const item1ID = 'DI81'
       const item2ID = 'DI82'
 
-      // 前提
+      // Prerequisite
       await POST(`/odata/v4/order-draft/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
@@ -204,21 +204,21 @@ describe('Draft read test cases', () => {
         ]
       })
 
-      // ドラフトを有効化
+      // Activate draft
       await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)/OrderDraftService.draftActivate`)
 
-      // アクティブを再度ドラフト編集
+      // Edit active as draft again
       await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=true)/OrderDraftService.draftEdit`, {
         PreserveChanges: true
       })
 
-      // DI82を削除
+      // Delete DI82
       await DELETE(`/odata/v4/order-draft/OrderItems(ID='${item2ID}',IsActiveEntity=false)`)
 
-      // 操作: /Orders_draft('D8')/items?$filter=isDeleted eq true
+      // Operation: /Orders_draft('D8')/items?$filter=isDeleted eq true
       const { data } = await GET(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)/items?$filter=isDeleted eq true`)
 
-      // 期待結果: DI82 のみ返る
+      // Expected result: Only DI82 is returned
       expect(data.value).to.have.lengthOf(1)
       expect(data.value[0].ID).to.equal(item2ID)
     })

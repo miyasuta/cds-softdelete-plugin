@@ -10,12 +10,12 @@ describe('Draft activation test cases', () => {
       const orderID = 'A100'
       const itemID = 'DI101'
 
-      // 前提: アクティブ側: Orders('A100') のみ、子なし
-      //       ドラフト: Orders_draft('D100')
-      //       ドラフト子 DI101: isDeleted=true（一度も有効化していない新規子）
-      //       アクティブ側に対応する子レコードは存在しない
+      // Prerequisite: Active side: Only Orders('A100'), no children
+      //       Draft: Orders_draft('D100')
+      //       Draft child DI101: isDeleted=true (new child never activated before)
+      //       No corresponding child record exists on active side
 
-      // 新規ドラフトを作成
+      // Create new draft
       await POST(`/odata/v4/order-draft/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
@@ -25,13 +25,13 @@ describe('Draft activation test cases', () => {
         ]
       })
 
-      // ドラフト子を削除（isDeleted=true にする）
+      // Delete draft child (set isDeleted=true)
       await DELETE(`/odata/v4/order-draft/OrderItems(ID='${itemID}',IsActiveEntity=false)`)
 
-      // 操作: POST /OrderService/Orders(ID='A100',IsActiveEntity=true)/OrderService.draftActivate
+      // Operation: POST /OrderService/Orders(ID='A100',IsActiveEntity=true)/OrderService.draftActivate
       await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)/OrderDraftService.draftActivate`)
 
-      // 期待結果: アクティブ側 OrderItems に DI101 に対応する子が作成されない
+      // Expected result: No child corresponding to DI101 is created on active side OrderItems
       const { data } = await GET(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=true)?$expand=items`)
 
       expect(data.items).to.have.lengthOf(0)
@@ -43,11 +43,11 @@ describe('Draft activation test cases', () => {
       const orderID = 'A200'
       const itemID = 'AI201'
 
-      // 前提: アクティブ側: Orders('A200'), OrderItems('AI201': isDeleted=false)
-      //       ドラフト側: Orders_draft('D200')
-      //       ドラフト子 DI201: isDeleted=true（AI201 に対応）
+      // Prerequisite: Active side: Orders('A200'), OrderItems('AI201': isDeleted=false)
+      //       Draft side: Orders_draft('D200')
+      //       Draft child DI201: isDeleted=true (corresponds to AI201)
 
-      // アクティブエンティティを作成
+      // Create active entity
       await POST(`/odata/v4/order-draft/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
@@ -57,25 +57,25 @@ describe('Draft activation test cases', () => {
         ]
       })
 
-      // ドラフトを有効化
+      // Activate draft
       await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)/OrderDraftService.draftActivate`)
 
-      // アクティブを再度ドラフト編集
+      // Edit active as draft again
       await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=true)/OrderDraftService.draftEdit`, {
         PreserveChanges: true
       })
 
-      // ドラフト子を削除（isDeleted=true にする）
+      // Delete draft child (set isDeleted=true)
       await DELETE(`/odata/v4/order-draft/OrderItems(ID='${itemID}',IsActiveEntity=false)`)
 
-      // 操作: POST /OrderService/Orders(ID='A200',IsActiveEntity=true)/OrderService.draftActivate
+      // Operation: POST /OrderService/Orders(ID='A200',IsActiveEntity=true)/OrderService.draftActivate
       await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)/OrderDraftService.draftActivate`)
 
-      // 期待結果: アクティブ OrderItems('AI201').isDeleted == true
+      // Expected result: Active OrderItems('AI201').isDeleted == true
       const { data: activeItem } = await GET(`/odata/v4/order-draft/OrderItems(ID='${itemID}',IsActiveEntity=true)`)
       expect(activeItem.isDeleted).to.be.true
 
-      // 期待結果: アクティブ OrderItems('AI201').deletedAt / deletedBy も更新される
+      // Expected result: Active OrderItems('AI201').deletedAt / deletedBy are also updated
       expect(activeItem.deletedAt).to.not.be.null
       expect(activeItem.deletedBy).to.equal('alice')
     })

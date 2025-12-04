@@ -10,7 +10,7 @@ describe('Active read test cases', () => {
       const orderID1 = 'A1'
       const orderID2 = 'A2'
 
-      // 前提: A1: isDeleted=false, A2: isDeleted=true
+      // Prerequisite: A1: isDeleted=false, A2: isDeleted=true
       await POST(`/odata/v4/order/Orders`, {
         ID: orderID1,
         createdAt: new Date().toISOString(),
@@ -23,13 +23,13 @@ describe('Active read test cases', () => {
         total: 200.00
       })
 
-      // A2を削除
+      // Delete A2
       await DELETE(`/odata/v4/order/Orders('${orderID2}')`)
 
-      // 操作: GET /OrderService/Orders
+      // Operation: GET /OrderService/Orders
       const { data } = await GET(`/odata/v4/order/Orders`)
 
-      // 期待結果: A1 のみ返る
+      // Expected result: Only A1 is returned
       const a1 = data.value.find(o => o.ID === orderID1)
       const a2 = data.value.find(o => o.ID === orderID2)
 
@@ -44,7 +44,7 @@ describe('Active read test cases', () => {
       const orderID1 = 'A3'
       const orderID2 = 'A4'
 
-      // 前提: A3: false, A4: true
+      // Prerequisite: A3: false, A4: true
       await POST(`/odata/v4/order/Orders`, {
         ID: orderID1,
         createdAt: new Date().toISOString(),
@@ -57,13 +57,13 @@ describe('Active read test cases', () => {
         total: 200.00
       })
 
-      // A4を削除
+      // Delete A4
       await DELETE(`/odata/v4/order/Orders('${orderID2}')`)
 
-      // 操作: GET /OrderService/Orders?$filter=isDeleted eq true
+      // Operation: GET /OrderService/Orders?$filter=isDeleted eq true
       const { data } = await GET(`/odata/v4/order/Orders?$filter=isDeleted eq true`)
 
-      // 期待結果: A4 のみ返る
+      // Expected result: Only A4 is returned
       const result = data.value.filter(o => [orderID1, orderID2].includes(o.ID))
       expect(result).to.have.lengthOf(1)
       expect(result[0].ID).to.equal(orderID2)
@@ -76,7 +76,7 @@ describe('Active read test cases', () => {
       const orderID1 = 'A5'
       const orderID2 = 'A6'
 
-      // 前提
+      // Prerequisite
       await POST(`/odata/v4/order/Orders`, {
         ID: orderID1,
         createdAt: new Date().toISOString(),
@@ -89,13 +89,13 @@ describe('Active read test cases', () => {
         total: 200.00
       })
 
-      // A6を削除
+      // Delete A6
       await DELETE(`/odata/v4/order/Orders('${orderID2}')`)
 
-      // 操作: GET /OrderService/Orders?$filter=isDeleted eq false
+      // Operation: GET /OrderService/Orders?$filter=isDeleted eq false
       const { data } = await GET(`/odata/v4/order/Orders?$filter=isDeleted eq false`)
 
-      // 期待結果: isDeleted=false のみ返る
+      // Expected result: Only isDeleted=false is returned
       const result = data.value.filter(o => [orderID1, orderID2].includes(o.ID))
       expect(result).to.have.lengthOf(1)
       expect(result[0].ID).to.equal(orderID1)
@@ -107,17 +107,17 @@ describe('Active read test cases', () => {
     it('Key-specified access returns regardless of isDeleted', async () => {
       const orderID = 'A7'
 
-      // 前提: A7: isDeleted=false
+      // Prerequisite: A7: isDeleted=false
       await POST(`/odata/v4/order/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
         total: 100.00
       })
 
-      // 操作: GET /OrderService/Orders('A7')
+      // Operation: GET /OrderService/Orders('A7')
       const { data } = await GET(`/odata/v4/order/Orders('${orderID}')`)
 
-      // 期待結果: A7 が返る
+      // Expected result: A7 is returned
       expect(data.ID).to.equal(orderID)
       expect(data.isDeleted).to.be.false
     })
@@ -127,20 +127,20 @@ describe('Active read test cases', () => {
     it('Even if deleted, returned via key-specified access', async () => {
       const orderID = 'A8'
 
-      // 前提: A8: isDeleted=true
+      // Prerequisite: A8: isDeleted=true
       await POST(`/odata/v4/order/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
         total: 100.00
       })
 
-      // A8を削除
+      // Delete A8
       await DELETE(`/odata/v4/order/Orders('${orderID}')`)
 
-      // 操作: GET /OrderService/Orders('A8')
+      // Operation: GET /OrderService/Orders('A8')
       const { data } = await GET(`/odata/v4/order/Orders('${orderID}')`)
 
-      // 期待結果: isDeleted=true の A8 が返る
+      // Expected result: A8 with isDeleted=true is returned
       expect(data.ID).to.equal(orderID)
       expect(data.isDeleted).to.be.true
     })
@@ -151,7 +151,7 @@ describe('Active read test cases', () => {
       const orderID1 = 'A9'
       const orderID2 = 'A10'
 
-      // 前提: A9: false, A10: true
+      // Prerequisite: A9: false, A10: true
       await POST(`/odata/v4/order/Orders`, {
         ID: orderID1,
         createdAt: new Date().toISOString(),
@@ -164,13 +164,13 @@ describe('Active read test cases', () => {
         total: 200.00
       })
 
-      // A10を削除
+      // Delete A10
       await DELETE(`/odata/v4/order/Orders('${orderID2}')`)
 
-      // 操作: GET /OrderService/Orders?$filter=ID eq 'A9'
+      // Operation: GET /OrderService/Orders?$filter=ID eq 'A9'
       const { data } = await GET(`/odata/v4/order/Orders?$filter=ID eq '${orderID1}'`)
 
-      // 期待結果: isDeleted=false の A9 が返る
+      // Expected result: A9 with isDeleted=false is returned
       expect(data.value).to.have.lengthOf(1)
       expect(data.value[0].ID).to.equal(orderID1)
       expect(data.value[0].isDeleted).to.be.false
@@ -183,7 +183,7 @@ describe('Active read test cases', () => {
       const item1ID = 'C71'
       const item2ID = 'C72'
 
-      // 前提: C71: false, C72: true
+      // Prerequisite: C71: false, C72: true
       await POST(`/odata/v4/order/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
@@ -194,13 +194,13 @@ describe('Active read test cases', () => {
         ]
       })
 
-      // C72を削除
+      // Delete C72
       await DELETE(`/odata/v4/order/OrderItems('${item2ID}')`)
 
-      // 操作: GET /OrderService/OrderItems
+      // Operation: GET /OrderService/OrderItems
       const { data } = await GET(`/odata/v4/order/OrderItems`)
 
-      // 期待結果: C71 のみ返る
+      // Expected result: Only C71 is returned
       const result = data.value.filter(i => [item1ID, item2ID].includes(i.ID))
       expect(result).to.have.lengthOf(1)
       expect(result[0].ID).to.equal(item1ID)
@@ -213,7 +213,7 @@ describe('Active read test cases', () => {
       const item1ID = 'C73'
       const item2ID = 'C74'
 
-      // 前提
+      // Prerequisite
       await POST(`/odata/v4/order/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
@@ -224,13 +224,13 @@ describe('Active read test cases', () => {
         ]
       })
 
-      // C74を削除
+      // Delete C74
       await DELETE(`/odata/v4/order/OrderItems('${item2ID}')`)
 
-      // 操作: GET /OrderService/OrderItems?$filter=isDeleted eq true
+      // Operation: GET /OrderService/OrderItems?$filter=isDeleted eq true
       const { data } = await GET(`/odata/v4/order/OrderItems?$filter=isDeleted eq true`)
 
-      // 期待結果: C74 のみ返る
+      // Expected result: Only C74 is returned
       const result = data.value.filter(i => [item1ID, item2ID].includes(i.ID))
       expect(result).to.have.lengthOf(1)
       expect(result[0].ID).to.equal(item2ID)
@@ -242,7 +242,7 @@ describe('Active read test cases', () => {
       const orderID = 'A13'
       const itemID = 'C9'
 
-      // 前提: C9: isDeleted=true
+      // Prerequisite: C9: isDeleted=true
       await POST(`/odata/v4/order/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
@@ -252,13 +252,13 @@ describe('Active read test cases', () => {
         ]
       })
 
-      // C9を削除
+      // Delete C9
       await DELETE(`/odata/v4/order/OrderItems('${itemID}')`)
 
-      // 操作: GET /OrderService/OrderItems('C9')
+      // Operation: GET /OrderService/OrderItems('C9')
       const { data } = await GET(`/odata/v4/order/OrderItems('${itemID}')`)
 
-      // 期待結果: C9 が返る
+      // Expected result: C9 is returned
       expect(data.ID).to.equal(itemID)
       expect(data.isDeleted).to.be.true
     })
@@ -270,7 +270,7 @@ describe('Active read test cases', () => {
       const item1ID = 'N101'
       const item2ID = 'N102'
 
-      // 前提: 親 N10: isDeleted=false, 子 N101: false, 子 N102: true
+      // Prerequisite: Parent N10: isDeleted=false, Child N101: false, Child N102: true
       await POST(`/odata/v4/order/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
@@ -281,13 +281,13 @@ describe('Active read test cases', () => {
         ]
       })
 
-      // N102を削除
+      // Delete N102
       await DELETE(`/odata/v4/order/OrderItems('${item2ID}')`)
 
-      // 操作: GET /OrderService/Orders('N10')?$expand=items
+      // Operation: GET /OrderService/Orders('N10')?$expand=items
       const { data } = await GET(`/odata/v4/order/Orders('${orderID}')?$expand=items`)
 
-      // 期待結果: items には N101 のみ含まれる
+      // Expected result: items includes only N101
       expect(data.items).to.have.lengthOf(1)
       expect(data.items[0].ID).to.equal(item1ID)
     })
@@ -299,7 +299,7 @@ describe('Active read test cases', () => {
       const item1ID = 'N111'
       const item2ID = 'N112'
 
-      // 前提
+      // Prerequisite
       await POST(`/odata/v4/order/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
@@ -310,13 +310,13 @@ describe('Active read test cases', () => {
         ]
       })
 
-      // N112を削除
+      // Delete N112
       await DELETE(`/odata/v4/order/OrderItems('${item2ID}')`)
 
-      // 操作: /Orders('N11')/items?$filter=isDeleted eq true
+      // Operation: /Orders('N11')/items?$filter=isDeleted eq true
       const { data } = await GET(`/odata/v4/order/Orders('${orderID}')/items?$filter=isDeleted eq true`)
 
-      // 期待結果: N112 のみ返る
+      // Expected result: Only N112 is returned
       expect(data.value).to.have.lengthOf(1)
       expect(data.value[0].ID).to.equal(item2ID)
     })
@@ -327,7 +327,7 @@ describe('Active read test cases', () => {
       const orderID = 'N12'
       const itemID = 'N121'
 
-      // 前提: 親 N12: isDeleted=true, 子 N121: isDeleted=true
+      // Prerequisite: Parent N12: isDeleted=true, Child N121: isDeleted=true
       await POST(`/odata/v4/order/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
@@ -337,13 +337,13 @@ describe('Active read test cases', () => {
         ]
       })
 
-      // 親を削除（カスケードで子も削除される）
+      // Delete parent (cascades to delete children)
       await DELETE(`/odata/v4/order/Orders('${orderID}')`)
 
-      // 操作: /Orders('N12')?$expand=items
+      // Operation: /Orders('N12')?$expand=items
       const { data } = await GET(`/odata/v4/order/Orders('${orderID}')?$expand=items`)
 
-      // 期待結果: items に N121 を含む
+      // Expected result: items includes N121
       expect(data.isDeleted).to.be.true
       expect(data.items).to.have.lengthOf(1)
       expect(data.items[0].ID).to.equal(itemID)
@@ -356,7 +356,7 @@ describe('Active read test cases', () => {
       const orderID = 'N13'
       const itemID = 'N131'
 
-      // 前提
+      // Prerequisite
       await POST(`/odata/v4/order/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
@@ -366,13 +366,13 @@ describe('Active read test cases', () => {
         ]
       })
 
-      // 親を削除
+      // Delete parent
       await DELETE(`/odata/v4/order/Orders('${orderID}')`)
 
-      // 操作: /Orders('N13')/items?$filter=isDeleted eq false
+      // Operation: /Orders('N13')/items?$filter=isDeleted eq false
       const { data } = await GET(`/odata/v4/order/Orders('${orderID}')/items?$filter=isDeleted eq false`)
 
-      // 期待結果: 空配列
+      // Expected result: Empty array
       expect(data.value).to.have.lengthOf(0)
     })
   })
@@ -383,7 +383,7 @@ describe('Active read test cases', () => {
       const itemID = 'N141'
       const detailID = 'N1411'
 
-      // 前提: Orders('N14'): isDeleted=true, OrderItems('N141'): isDeleted=true, ItemDetails('N1411'): isDeleted=true
+      // Prerequisite: Orders('N14'): isDeleted=true, OrderItems('N141'): isDeleted=true, ItemDetails('N1411'): isDeleted=true
       await POST(`/odata/v4/order/Orders`, {
         ID: orderID,
         createdAt: new Date().toISOString(),
@@ -399,13 +399,13 @@ describe('Active read test cases', () => {
         ]
       })
 
-      // 親を削除
+      // Delete parent
       await DELETE(`/odata/v4/order/Orders('${orderID}')`)
 
-      // 操作: GET /OrderService/Orders('N14')?$expand=items($expand=details)
+      // Operation: GET /OrderService/Orders('N14')?$expand=items($expand=details)
       const { data } = await GET(`/odata/v4/order/Orders('${orderID}')?$expand=items($expand=details)`)
 
-      // 期待結果: items に N141 を含む, items[0].details に N1411 を含む, すべて isDeleted=true
+      // Expected result: items includes N141, items[0].details includes N1411, all have isDeleted=true
       expect(data.isDeleted).to.be.true
       expect(data.items).to.have.lengthOf(1)
       expect(data.items[0].ID).to.equal(itemID)
@@ -421,20 +421,20 @@ describe('Active read test cases', () => {
       const bookID = 1
       const bookVersion = 2
 
-      // 前提: Books(ID=1,version=2): isDeleted=true
+      // Prerequisite: Books(ID=1,version=2): isDeleted=true
       await POST(`/odata/v4/book/Books`, {
         ID: bookID,
         version: bookVersion,
         title: 'Test Book'
       })
 
-      // 削除
+      // Delete
       await DELETE(`/odata/v4/book/Books(ID=${bookID},version=${bookVersion})`)
 
-      // 操作: GET /BookService/Books(ID=1,version=2)
+      // Operation: GET /BookService/Books(ID=1,version=2)
       const { data } = await GET(`/odata/v4/book/Books(ID=${bookID},version=${bookVersion})`)
 
-      // 期待結果: Books(ID=1,version=2) が返る（isDeleted=true でも返る）
+      // Expected result: Books(ID=1,version=2) is returned (even with isDeleted=true)
       expect(data.ID).to.equal(bookID)
       expect(data.version).to.equal(bookVersion)
       expect(data.isDeleted).to.be.true
@@ -447,7 +447,7 @@ describe('Active read test cases', () => {
       const bookVersion1 = 1
       const bookVersion2 = 2
 
-      // 前提: Books(ID=2,version=1): isDeleted=false, Books(ID=2,version=2): isDeleted=true
+      // Prerequisite: Books(ID=2,version=1): isDeleted=false, Books(ID=2,version=2): isDeleted=true
       await POST(`/odata/v4/book/Books`, {
         ID: bookID,
         version: bookVersion1,
@@ -460,13 +460,13 @@ describe('Active read test cases', () => {
         title: 'Test Book v2'
       })
 
-      // version=2を削除
+      // Delete version=2
       await DELETE(`/odata/v4/book/Books(ID=${bookID},version=${bookVersion2})`)
 
-      // 操作: GET /BookService/Books?$filter=ID eq 2
+      // Operation: GET /BookService/Books?$filter=ID eq 2
       const { data } = await GET(`/odata/v4/book/Books?$filter=ID eq ${bookID}`)
 
-      // 期待結果: Books(ID=2,version=1) のみ返る（isDeleted=false のみ）
+      // Expected result: Only Books(ID=2,version=1) is returned (only isDeleted=false)
       const result = data.value.filter(b => b.ID === bookID)
       expect(result).to.have.lengthOf(1)
       expect(result[0].version).to.equal(bookVersion1)
