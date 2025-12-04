@@ -8,8 +8,9 @@ todo.md
 # IDE
 .vscode/
 
-# Test UI projects
+# Test projects
 tests/ordersui/
+tests/bookshop/
 
 # Internal documentation
 docs/
