@@ -1,8 +1,54 @@
 # Soft Delete Plugin — Test Specification
 （updated spec based on 2025-02 version）
 
-本ドキュメントは、最新版仕様に基づいて作成したテストケース一覧である。  
+本ドキュメントは、最新版仕様に基づいて作成したテストケース一覧である。
 すべて箇条書きのみで記述し、表形式は使用しない。
+
+---
+
+## テストケース一覧
+
+### 1. 削除時のテストケース（DEL-xx）
+- DEL-01: アクティブルートの論理削除
+- DEL-02: ルート削除による Composition 子カスケード
+- DEL-03: アクティブ子の個別 DELETE
+- DEL-03-extended: 子削除による孫カスケード
+- DEL-04: ドラフト破棄時は物理削除
+- DEL-05: ドラフト子削除（isDeleted=true）
+- DEL-05-extended: ドラフト子削除による孫カスケード
+- DEL-06: isDeleted=true レコードへの再 DELETE（冪等性）
+
+### 2. アクティブ照会のテストケース（READ-A-xx）
+- READ-A-01: ルート一覧（削除済み除外）
+- READ-A-02: 削除済みのみ取得（フィルタ）
+- READ-A-03: `$filter=isDeleted eq false`
+- READ-A-04: キー指定（未削除）
+- READ-A-05: キー指定（削除済）
+- READ-A-06: キー指定なし判定（フィルタでの疑似キー指定）
+- READ-A-07: 子の直接アクセス（未削除）
+- READ-A-08: 子の直接アクセス（削除済）
+- READ-A-09: 子キー指定（削除済）
+- READ-A-10: 親未削除 + `$expand`（子の削除済除外）
+- READ-A-11: 親未削除 + Navigation + isDeleted=true
+- READ-A-12: 親削除済 + `$expand`（削除済子を返す）
+- READ-A-13: 親削除済 + Navigation + isDeleted=false（ヒットなし）
+- READ-A-14: 深い階層の$expand（親削除済）
+- READ-A-15: 複合キー指定（すべてのキー指定）
+- READ-A-16: 複合キー部分指定（キー指定扱いにならない）
+
+### 3. ドラフト照会のテストケース（READ-D-xx）
+- READ-D-01: ドラフトルート一覧（未削除のみ）
+- READ-D-02: ドラフトルート + isDeleted=true フィルタ（該当なし）
+- READ-D-03: ドラフトルートキー指定（未削除）
+- READ-D-04: ドラフト子一覧（削除済も含む）— ドラフト編集中の削除を確認可能
+- READ-D-05: ドラフト子一覧（削除済のみ）— $filter=isDeleted eq true で明示的にフィルタ
+- READ-D-06: ドラフト子キー指定（削除済でも返る）
+- READ-D-07: 親ドラフト未削除 + `$expand`（削除済子も含む）— ドラフト編集中の削除を確認可能
+- READ-D-08: 親ドラフト未削除 + Navigation + isDeleted=true
+
+### 4. ドラフト有効化のテストケース（ACT-xx）
+- ACT-01: 新規ドラフト子を isDeleted=true にして有効化（アクティブ未作成）
+- ACT-02: 既存子を isDeleted=true にして有効化（アクティブへ反映）
 
 ---
 
@@ -328,22 +374,28 @@
 
 ---
 
-## READ-D-04: ドラフト子一覧（未削除のみ）
+## READ-D-04: ドラフト子一覧（削除済も含む）
+- 目的: ドラフト編集中に削除したアイテムを確認できる（復元の機会を提供）
 - 前提:
   - DI41: false
-  - DI42: true
+  - DI42: true（ドラフト編集中に削除）
 - 操作:
   - `/OrderItems_draft?$filter=IsActiveEntity eq false`
 - 期待結果:
-  - DI41 のみ返る
+  - DI41, DI42 の両方が返る（削除済も含む）
+  - DI41.isDeleted == false
+  - DI42.isDeleted == true
 
 ---
 
-## READ-D-05: ドラフト子一覧（削除済みのみ）
+## READ-D-05: ドラフト子一覧（削除済のみ）
+- 目的: 明示的なフィルタで削除済のみを取得できる
 - 操作:
   - `/OrderItems_draft?$filter=isDeleted eq true`
 - 期待結果:
-  - DI42 のみ返る
+  - DI42 のみ返る（明示的なフィルタが機能する）
+  - DI42.isDeleted == true
+- 注記: 現在Issue-02により失敗中（明示的なフィルタが機能しない）
 
 ---
 
@@ -357,15 +409,18 @@
 
 ---
 
-## READ-D-07: 親ドラフト未削除 + `$expand`（子の削除済除外）
+## READ-D-07: 親ドラフト未削除 + `$expand`（削除済子も含む）
+- 目的: ドラフト編集中に削除した子アイテムを $expand で確認できる
 - 前提:
   - D7: false
   - DI71: false
-  - DI72: true
+  - DI72: true（ドラフト編集中に削除）
 - 操作:
   - `/Orders_draft('D7')?$expand=items`
 - 期待結果:
-  - items には DI71 のみ含まれる
+  - items には DI71, DI72 の両方が含まれる（削除済も含む）
+  - DI71.isDeleted == false
+  - DI72.isDeleted == true
 
 ---
 

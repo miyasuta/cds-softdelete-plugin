@@ -232,7 +232,10 @@ The parent entity is not affected when a child is deleted directly.
 - **OData V2 Compatibility**: OData V2 does not support `$filter` within `$expand`, so the parent's `isDeleted` filter is automatically propagated to Composition children.
 - **User-specified Filters**: When you explicitly specify `isDeleted` in an `$expand` filter (e.g., `$expand=items($filter=isDeleted eq true)`), the plugin respects your filter and does not add automatic filtering.
 - **Physical Deletion**: If physical deletion is required, you can implement custom logic to delete soft-deleted records (where `isDeleted = true`).
-- **Draft Entity READ Filtering**: Draft entities are excluded from automatic `isDeleted` filtering. This allows CAP's draft activation process to properly synchronize soft-deleted records from draft to active entities. When querying draft entities directly (e.g., `OrderItems_drafts`), you may need to manually add an `isDeleted` filter if you only want to see non-deleted drafts.
+- **Draft Entity READ Filtering**: Draft entities are excluded from automatic `isDeleted` filtering. This is necessary for the CAP draft activation mechanism to properly synchronize soft-deleted items from draft to active entities:
+  - **Technical Reason**: If the plugin automatically filtered out `isDeleted=true` items from draft entity queries, the CAP framework's draft activation process would not be able to synchronize the `isDeleted` flag and related metadata (`deletedAt`, `deletedBy`) to active entities. The framework needs to see all draft records, including soft-deleted ones, to properly update the corresponding active records.
+  - **Behavior**: When editing an Object Page in draft mode, soft-deleted items remain visible even after navigating away and returning to the page. This is a side effect of the technical requirement above.
+  - **Draft Activation**: When the draft is activated, `isDeleted=true` items are properly synchronized to active entities, completing the soft delete operation.
 
 ## License
 
