@@ -51,7 +51,7 @@
 
 ### 5. バリデーションのテストケース（VAL-xx）
 - VAL-01: @softdelete.enabled付きエンティティにすべての必須フィールドがある場合の起動成功
-- VAL-02: @softdelete.enabled付きエンティティにsoftdeleteアスペクトがない場合の起動失敗
+- VAL-02: @softdelete.enabled付きエンティティにsoftdeleteアスペクトがない場合の起動失敗（手動テスト）
 
 ### 6. フィールド保護のテストケース（PROT-xx）
 - PROT-01: CREATE時にisDeletedを指定しても無視される
@@ -475,7 +475,7 @@
 
 ---
 
-## VAL-02: @softdelete.enabled付きエンティティにsoftdeleteアスペクトがない場合の起動失敗
+## VAL-02: @softdelete.enabled付きエンティティにsoftdeleteアスペクトがない場合の起動失敗（手動テスト）
 - 目的: 必須フィールドが欠けている場合、サーバー起動時にエラーが発生すること
 - 前提:
   - エンティティに `@softdelete.enabled` アノテーションが設定されている
@@ -485,6 +485,10 @@
 - 期待結果:
   - サーバーの起動に失敗する
   - エラーメッセージに欠けているフィールド（isDeleted、deletedAt、deletedByのいずれか）が示される
+- 注意:
+  - このテストは手動で実行する必要がある
+  - 自動テストで実装するには、不正な設定の別プロジェクトが必要となり複雑になるため
+  - バリデーションロジック自体は cds-plugin.js:33-45 に実装済み
 
 ---
 
