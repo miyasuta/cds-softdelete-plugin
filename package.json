@@ -1,13 +1,25 @@
 {
   "name": "cds-softdelete-plugin",
   "version": "0.3.5",
+  "description": "A plugin for implementing soft delete functionality in SAP Cloud Application Programming Model (CAP) applications",
   "main": "cds-plugin.js",
+  "keywords": [
+    "cds",
+    "cap",
+    "sap",
+    "plugin",
+    "soft-delete",
+    "logical-delete"
+  ],
+  "author": "miyasuta",
+  "license": "MIT",
   "files": [
     "cds-plugin.js",
     "lib",
     "index.cds",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "peerDependencies": {
     "@sap/cds": ">=9"
