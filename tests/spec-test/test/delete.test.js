@@ -150,6 +150,35 @@ describe('Deletion test cases', () => {
     })
   })
 
+  describe('DEL-03-nav: Individual DELETE of active child via navigation path', () => {
+    it('Child DELETE via navigation path soft deletes only the child, parent remains unchanged', async () => {
+      const orderID = 'O3N'
+      const itemID = 'I31N'
+
+      // Prerequisite: Orders('O3N'): isDeleted=false
+      //       OrderItems('I31N'): isDeleted=false
+      await POST(`/odata/v4/order/Orders`, {
+        ID: orderID,
+        createdAt: new Date().toISOString(),
+        total: 300.00,
+        items: [
+          { ID: itemID, quantity: 5 }
+        ]
+      })
+
+      // Operation: DELETE /OrderService/Orders('O3N')/items('I31N')
+      await DELETE(`/odata/v4/order/Orders('${orderID}')/items('${itemID}')`)
+
+      // Expected result: Orders('O3N').isDeleted remains false
+      const { data: order } = await GET(`/odata/v4/order/Orders('${orderID}')`)
+      expect(order.isDeleted).to.be.false
+
+      // Expected result: OrderItems('I31N').isDeleted == true
+      const { data: item } = await GET(`/odata/v4/order/OrderItems('${itemID}')`)
+      expect(item.isDeleted).to.be.true
+    })
+  })
+
   describe('DEL-04: Physical deletion on draft discard', () => {
     it('Draft discard physically deletes draft rows, not soft deleted', async () => {
       const orderID = 'OD4'
@@ -283,6 +312,249 @@ describe('Deletion test cases', () => {
       // Expected result: ItemDetails_draft('D511B').deletedAt / deletedBy are also updated
       expect(draftDetail.deletedAt).to.not.be.null
       expect(draftDetail.deletedBy).to.equal('alice')
+    })
+  })
+
+  describe('DEL-05-nav: Draft child deletion via navigation path (isDeleted=true)', () => {
+    it('Child deleted during draft editing via navigation path is set to isDeleted=true', async () => {
+      const orderID = 'O5N'
+      const itemID = 'I51N'
+
+      // Prerequisite: Orders('O5N'), OrderItems('I51N') are active
+      // Create draft and activate
+      await POST(`/odata/v4/order-draft/Orders`, {
+        ID: orderID,
+        createdAt: new Date().toISOString(),
+        total: 500.00,
+        items: [
+          { ID: itemID, quantity: 5 }
+        ]
+      })
+
+      // Activate draft to make it active
+      await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)/OrderDraftService.draftActivate`)
+
+      // Edit active entity as draft again
+      await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=true)/OrderDraftService.draftEdit`, {
+        PreserveChanges: true
+      })
+
+      // Operation: DELETE /OrderService/Orders(ID='O5N',IsActiveEntity=false)/items(ID='I51N',IsActiveEntity=false)
+      await DELETE(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)/items(ID='${itemID}',IsActiveEntity=false)`)
+
+      // Expected result: OrderItems_draft('I51N').isDeleted == true
+      const { data: draftItem } = await GET(`/odata/v4/order-draft/OrderItems(ID='${itemID}',IsActiveEntity=false)`)
+      expect(draftItem.isDeleted).to.be.true
+
+      // Expected result: OrderItems_draft('I51N').deletedAt / deletedBy are updated
+      expect(draftItem.deletedAt).to.not.be.null
+      expect(draftItem.deletedBy).to.equal('alice')
+
+      // Expected result: Active side is not yet deleted
+      const { data: activeItem } = await GET(`/odata/v4/order-draft/OrderItems(ID='${itemID}',IsActiveEntity=true)`)
+      expect(activeItem.isDeleted).to.be.false
+    })
+  })
+
+  describe('DEL-07: Individual DELETE of active grandchild', () => {
+    it('Grandchild DELETE soft deletes only the grandchild, parent and child remain unchanged', async () => {
+      const orderID = 'O7'
+      const itemID = 'I71'
+      const detailID = 'D711'
+
+      // Prerequisite: Orders('O7'): isDeleted=false
+      //       OrderItems('I71'): isDeleted=false
+      //       ItemDetails('D711'): isDeleted=false
+      await POST(`/odata/v4/order/Orders`, {
+        ID: orderID,
+        createdAt: new Date().toISOString(),
+        total: 700.00,
+        items: [
+          {
+            ID: itemID,
+            quantity: 5,
+            details: [
+              { ID: detailID, text: 'Detail 1' }
+            ]
+          }
+        ]
+      })
+
+      // Operation: DELETE /OrderService/ItemDetails('D711')
+      await DELETE(`/odata/v4/order/ItemDetails('${detailID}')`)
+
+      // Expected result: Orders('O7').isDeleted remains false
+      const { data: order } = await GET(`/odata/v4/order/Orders('${orderID}')`)
+      expect(order.isDeleted).to.be.false
+
+      // Expected result: OrderItems('I71').isDeleted remains false
+      const { data: item } = await GET(`/odata/v4/order/OrderItems('${itemID}')`)
+      expect(item.isDeleted).to.be.false
+
+      // Expected result: ItemDetails('D711').isDeleted == true
+      const { data: detail } = await GET(`/odata/v4/order/ItemDetails('${detailID}')`)
+      expect(detail.isDeleted).to.be.true
+
+      // Expected result: ItemDetails('D711').deletedAt / deletedBy are updated
+      expect(detail.deletedAt).to.not.be.null
+      expect(detail.deletedBy).to.equal('alice')
+    })
+  })
+
+  describe('DEL-07-nav: Individual DELETE of active grandchild via navigation path', () => {
+    it('Grandchild DELETE via navigation path soft deletes only the grandchild, parent and child remain unchanged', async () => {
+      const orderID = 'O7N'
+      const itemID = 'I71N'
+      const detailID = 'D711N'
+
+      // Prerequisite: Orders('O7N'): isDeleted=false
+      //       OrderItems('I71N'): isDeleted=false
+      //       ItemDetails('D711N'): isDeleted=false
+      await POST(`/odata/v4/order/Orders`, {
+        ID: orderID,
+        createdAt: new Date().toISOString(),
+        total: 700.00,
+        items: [
+          {
+            ID: itemID,
+            quantity: 5,
+            details: [
+              { ID: detailID, text: 'Detail 1' }
+            ]
+          }
+        ]
+      })
+
+      // Operation: DELETE /OrderService/Orders('O7N')/items('I71N')/details('D711N')
+      await DELETE(`/odata/v4/order/Orders('${orderID}')/items('${itemID}')/details('${detailID}')`)
+
+      // Expected result: Orders('O7N').isDeleted remains false
+      const { data: order } = await GET(`/odata/v4/order/Orders('${orderID}')`)
+      expect(order.isDeleted).to.be.false
+
+      // Expected result: OrderItems('I71N').isDeleted remains false
+      const { data: item } = await GET(`/odata/v4/order/OrderItems('${itemID}')`)
+      expect(item.isDeleted).to.be.false
+
+      // Expected result: ItemDetails('D711N').isDeleted == true
+      const { data: detail } = await GET(`/odata/v4/order/ItemDetails('${detailID}')`)
+      expect(detail.isDeleted).to.be.true
+
+      // Expected result: ItemDetails('D711N').deletedAt / deletedBy are updated
+      expect(detail.deletedAt).to.not.be.null
+      expect(detail.deletedBy).to.equal('alice')
+    })
+  })
+
+  describe('DEL-08: Draft grandchild deletion (isDeleted=true)', () => {
+    it('Grandchild deleted during draft editing is set to isDeleted=true', async () => {
+      const orderID = 'O8'
+      const itemID = 'I81'
+      const detailID = 'D811'
+
+      // Prerequisite: Orders('O8'), OrderItems('I81'), ItemDetails('D811') are active
+      // Create draft and activate
+      await POST(`/odata/v4/order-draft/Orders`, {
+        ID: orderID,
+        createdAt: new Date().toISOString(),
+        total: 800.00,
+        items: [
+          {
+            ID: itemID,
+            quantity: 5,
+            details: [
+              { ID: detailID, text: 'Detail 1' }
+            ]
+          }
+        ]
+      })
+
+      // Activate draft to make it active
+      await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)/OrderDraftService.draftActivate`)
+
+      // Edit active entity as draft again
+      await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=true)/OrderDraftService.draftEdit`, {
+        PreserveChanges: true
+      })
+
+      // Operation: DELETE /OrderService/ItemDetails(ID='D811',IsActiveEntity=false)
+      await DELETE(`/odata/v4/order-draft/ItemDetails(ID='${detailID}',IsActiveEntity=false)`)
+
+      // Expected result: Orders_draft('O8').isDeleted remains false
+      const { data: draftOrder } = await GET(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)`)
+      expect(draftOrder.isDeleted).to.be.false
+
+      // Expected result: OrderItems_draft('I81').isDeleted remains false
+      const { data: draftItem } = await GET(`/odata/v4/order-draft/OrderItems(ID='${itemID}',IsActiveEntity=false)`)
+      expect(draftItem.isDeleted).to.be.false
+
+      // Expected result: ItemDetails_draft('D811').isDeleted == true
+      const { data: draftDetail } = await GET(`/odata/v4/order-draft/ItemDetails(ID='${detailID}',IsActiveEntity=false)`)
+      expect(draftDetail.isDeleted).to.be.true
+
+      // Expected result: ItemDetails_draft('D811').deletedAt / deletedBy are updated
+      expect(draftDetail.deletedAt).to.not.be.null
+      expect(draftDetail.deletedBy).to.equal('alice')
+
+      // Expected result: Active side is not yet deleted
+      const { data: activeDetail } = await GET(`/odata/v4/order-draft/ItemDetails(ID='${detailID}',IsActiveEntity=true)`)
+      expect(activeDetail.isDeleted).to.be.false
+    })
+  })
+
+  describe('DEL-08-nav: Draft grandchild deletion via navigation path (isDeleted=true)', () => {
+    it('Grandchild deleted during draft editing via navigation path is set to isDeleted=true', async () => {
+      const orderID = 'O8N'
+      const itemID = 'I81N'
+      const detailID = 'D811N'
+
+      // Prerequisite: Orders('O8N'), OrderItems('I81N'), ItemDetails('D811N') are active
+      // Create draft and activate
+      await POST(`/odata/v4/order-draft/Orders`, {
+        ID: orderID,
+        createdAt: new Date().toISOString(),
+        total: 800.00,
+        items: [
+          {
+            ID: itemID,
+            quantity: 5,
+            details: [
+              { ID: detailID, text: 'Detail 1' }
+            ]
+          }
+        ]
+      })
+
+      // Activate draft to make it active
+      await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)/OrderDraftService.draftActivate`)
+
+      // Edit active entity as draft again
+      await POST(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=true)/OrderDraftService.draftEdit`, {
+        PreserveChanges: true
+      })
+
+      // Operation: DELETE /OrderService/Orders(ID='O8N',IsActiveEntity=false)/items(ID='I81N',IsActiveEntity=false)/details(ID='D811N',IsActiveEntity=false)
+      await DELETE(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)/items(ID='${itemID}',IsActiveEntity=false)/details(ID='${detailID}',IsActiveEntity=false)`)
+
+      // Expected result: Orders_draft('O8N').isDeleted remains false
+      const { data: draftOrder } = await GET(`/odata/v4/order-draft/Orders(ID='${orderID}',IsActiveEntity=false)`)
+      expect(draftOrder.isDeleted).to.be.false
+
+      // Expected result: OrderItems_draft('I81N').isDeleted remains false
+      const { data: draftItem } = await GET(`/odata/v4/order-draft/OrderItems(ID='${itemID}',IsActiveEntity=false)`)
+      expect(draftItem.isDeleted).to.be.false
+
+      // Expected result: ItemDetails_draft('D811N').isDeleted == true
+      const { data: draftDetail } = await GET(`/odata/v4/order-draft/ItemDetails(ID='${detailID}',IsActiveEntity=false)`)
+      expect(draftDetail.isDeleted).to.be.true
+
+      // Expected result: ItemDetails_draft('D811N').deletedAt / deletedBy are updated
+      expect(draftDetail.deletedAt).to.not.be.null
+      expect(draftDetail.deletedBy).to.equal('alice')
+
+      // Expected result: Active side is not yet deleted
+      const { data: activeDetail } = await GET(`/odata/v4/order-draft/ItemDetails(ID='${detailID}',IsActiveEntity=true)`)
+      expect(activeDetail.isDeleted).to.be.false
     })
   })
 

@@ -13,10 +13,16 @@
 - DEL-02: ルート削除による Composition 子カスケード
 - DEL-03: アクティブ子の個別 DELETE
 - DEL-03-extended: 子削除による孫カスケード
+- DEL-03-nav: ナビゲーションパス経由でのアクティブ子の個別 DELETE
 - DEL-04: ドラフト破棄時は物理削除
 - DEL-05: ドラフト子削除（isDeleted=true）
 - DEL-05-extended: ドラフト子削除による孫カスケード
+- DEL-05-nav: ナビゲーションパス経由でのドラフト子削除（isDeleted=true）
 - DEL-06: isDeleted=true レコードへの再 DELETE（冪等性）
+- DEL-07: アクティブ孫の個別 DELETE
+- DEL-07-nav: ナビゲーションパス経由でのアクティブ孫の個別 DELETE
+- DEL-08: ドラフト孫の個別 DELETE
+- DEL-08-nav: ナビゲーションパス経由でのドラフト孫の個別 DELETE
 
 ### 2. アクティブ照会のテストケース（READ-A-xx）
 - READ-A-01: ルート一覧（削除済み除外）
@@ -121,6 +127,19 @@
 
 ---
 
+## DEL-03-nav: ナビゲーションパス経由でのアクティブ子の個別 DELETE
+- 目的: ナビゲーションパス経由で子を DELETE したとき、子のみ論理削除され、親は未変更であること
+- 前提:
+  - Orders('O3N'): isDeleted=false
+  - OrderItems('I31N'): isDeleted=false
+- 操作:
+  - `DELETE /OrderService/Orders('O3N')/items('I31N')`
+- 期待結果:
+  - Orders('O3N').isDeleted は false のまま
+  - OrderItems('I31N').isDeleted == true
+
+---
+
 ## DEL-04: ドラフト破棄時は物理削除
 - 目的: ドラフト破棄でドラフト行が物理削除され、論理削除されないこと
 - 前提:
@@ -159,6 +178,84 @@
   - OrderItems_draft('ID51B').isDeleted == true
   - ItemDetails_draft('D511B').isDeleted == true (孫もカスケード)
   - ItemDetails_draft('D511B').deletedAt / deletedBy も更新される
+
+---
+
+## DEL-05-nav: ナビゲーションパス経由でのドラフト子削除（isDeleted=true）
+- 目的: ナビゲーションパス経由でドラフト編集中に削除した子に isDeleted=true が設定されること
+- 前提:
+  - Orders('O5N'), OrderItems('I51N') はアクティブ
+  - Orders_draft('O5N'), OrderItems_draft('I51N') が存在（編集モード）
+- 操作:
+  - `DELETE /OrderService/Orders(ID='O5N',IsActiveEntity=false)/items(ID='I51N',IsActiveEntity=false)`
+- 期待結果:
+  - OrderItems_draft('I51N').isDeleted == true
+  - OrderItems_draft('I51N').deletedAt / deletedBy が更新される
+  - アクティブ側はまだ削除されない
+
+---
+
+## DEL-07: アクティブ孫の個別 DELETE
+- 目的: 孫を直接 DELETE したとき、孫のみ論理削除され、親・子は未変更であること
+- 前提:
+  - Orders('O7'): isDeleted=false
+  - OrderItems('I71'): isDeleted=false
+  - ItemDetails('D711'): isDeleted=false
+- 操作:
+  - `DELETE /OrderService/ItemDetails('D711')`
+- 期待結果:
+  - Orders('O7').isDeleted は false のまま
+  - OrderItems('I71').isDeleted は false のまま
+  - ItemDetails('D711').isDeleted == true
+  - ItemDetails('D711').deletedAt / deletedBy が更新される
+
+---
+
+## DEL-07-nav: ナビゲーションパス経由でのアクティブ孫の個別 DELETE
+- 目的: ナビゲーションパス経由で孫を DELETE したとき、孫のみ論理削除され、親・子は未変更であること
+- 前提:
+  - Orders('O7N'): isDeleted=false
+  - OrderItems('I71N'): isDeleted=false
+  - ItemDetails('D711N'): isDeleted=false
+- 操作:
+  - `DELETE /OrderService/Orders('O7N')/items('I71N')/details('D711N')`
+- 期待結果:
+  - Orders('O7N').isDeleted は false のまま
+  - OrderItems('I71N').isDeleted は false のまま
+  - ItemDetails('D711N').isDeleted == true
+  - ItemDetails('D711N').deletedAt / deletedBy が更新される
+
+---
+
+## DEL-08: ドラフト孫の個別 DELETE
+- 目的: ドラフト編集中に孫を削除したとき、孫に isDeleted=true が設定されること
+- 前提:
+  - Orders('O8'), OrderItems('I81'), ItemDetails('D811') はアクティブ
+  - Orders_draft('O8'), OrderItems_draft('I81'), ItemDetails_draft('D811') が存在（編集モード）
+- 操作:
+  - `DELETE /OrderService/ItemDetails(ID='D811',IsActiveEntity=false)`
+- 期待結果:
+  - Orders_draft('O8').isDeleted は false のまま
+  - OrderItems_draft('I81').isDeleted は false のまま
+  - ItemDetails_draft('D811').isDeleted == true
+  - ItemDetails_draft('D811').deletedAt / deletedBy が更新される
+  - アクティブ側はまだ削除されない
+
+---
+
+## DEL-08-nav: ナビゲーションパス経由でのドラフト孫の個別 DELETE
+- 目的: ナビゲーションパス経由でドラフト編集中に孫を削除したとき、孫に isDeleted=true が設定されること
+- 前提:
+  - Orders('O8N'), OrderItems('I81N'), ItemDetails('D811N') はアクティブ
+  - Orders_draft('O8N'), OrderItems_draft('I81N'), ItemDetails_draft('D811N') が存在（編集モード）
+- 操作:
+  - `DELETE /OrderService/Orders(ID='O8N',IsActiveEntity=false)/items(ID='I81N',IsActiveEntity=false)/details(ID='D811N',IsActiveEntity=false)`
+- 期待結果:
+  - Orders_draft('O8N').isDeleted は false のまま
+  - OrderItems_draft('I81N').isDeleted は false のまま
+  - ItemDetails_draft('D811N').isDeleted == true
+  - ItemDetails_draft('D811N').deletedAt / deletedBy が更新される
+  - アクティブ側はまだ削除されない
 
 ---
 
