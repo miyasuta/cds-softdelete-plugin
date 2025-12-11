@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2025-12-12
+
+### Added
+- Navigation path deletion test cases (DEL-03-nav, DEL-05-nav, DEL-07-nav)
+- Grandchild cascade deletion test cases (DEL-03-extended, DEL-05-extended)
+
+### Changed
+- Improved test coverage for composition hierarchy deletion scenarios
+
 ## [1.0.0] - 2025-12-06
 
 ### First Major Release
@@ -100,6 +109,7 @@ This is the first stable release of cds-softdelete-plugin. The plugin is conside
 - Initial release with basic soft delete functionality
 - Validation for entities with `@softdelete.enabled`
 
+[1.0.1]: https://github.com/miyasuta/cds-softdelete-plugin/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/miyasuta/cds-softdelete-plugin/compare/v0.3.5...v1.0.0
 [0.3.5]: https://github.com/miyasuta/cds-softdelete-plugin/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/miyasuta/cds-softdelete-plugin/releases/tag/v0.3.4
