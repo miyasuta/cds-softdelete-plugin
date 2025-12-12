@@ -23,6 +23,7 @@
 - DEL-07-nav: ナビゲーションパス経由でのアクティブ孫の個別 DELETE
 - DEL-08: ドラフト孫の個別 DELETE
 - DEL-08-nav: ナビゲーションパス経由でのドラフト孫の個別 DELETE
+- DEL-09: @softdelete.enabled未指定エンティティの物理削除
 
 ### 2. アクティブ照会のテストケース（READ-A-xx）
 - READ-A-01: ルート一覧（削除済み除外）
@@ -268,6 +269,20 @@
 - 期待結果:
   - HTTP 204
   - isDeleted / deletedAt / deletedBy は変更されない
+
+---
+
+## DEL-09: @softdelete.enabled未指定エンティティの物理削除
+- 目的: @softdelete.enabled アノテーションが付いていないエンティティは物理削除されること
+- 前提:
+  - Products(ID=999): name='Test Product', price=100（Productsエンティティには@softdelete.enabledが付いていない）
+- 操作:
+  - `DELETE /BookService/Products(ID=999)`
+- 期待結果:
+  - HTTP 204
+  - Products(ID=999)がデータベースから物理削除される
+  - その後の `GET /BookService/Products(ID=999)` は 404 を返す
+  - 論理削除ではなく物理削除される
 
 ---
 

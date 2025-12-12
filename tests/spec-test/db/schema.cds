@@ -36,3 +36,10 @@ entity BusinessPartners: softdelete {
   key ID   : String;
       name : String;
 }
+
+// Products entity WITHOUT @softdelete.enabled (for physical delete testing)
+entity Products {
+  key ID    : Integer;
+      name  : String;
+      price : Decimal(9,2);
+}
