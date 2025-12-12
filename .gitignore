@@ -13,4 +13,4 @@ tests/ordersui/
 tests/bookshop/
 
 # Internal documentation
-docs/
+docs/issues.md
