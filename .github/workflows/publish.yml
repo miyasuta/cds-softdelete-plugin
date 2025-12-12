@@ -31,5 +31,16 @@ jobs:
           npm install
           npm test
 
+      - name: Debug npm auth config
+        run: |
+          echo "== env (auth related) =="
+          env | sort | grep -E '^(NPM|NODE)_' || true
+          echo "== user npmrc =="
+          (test -f ~/.npmrc && sed -E 's/(_authToken=).+/\1***REDACTED***/' ~/.npmrc) || echo "(no ~/.npmrc)"
+          echo "== project npmrc =="
+          (test -f .npmrc && sed -E 's/(_authToken=).+/\1***REDACTED***/' .npmrc) || echo "(no .npmrc)"
+          echo "== npm config (auth lines) =="
+          npm config list -l | grep -E '(_auth|authToken|registry)' || true
+
       - name: Publish
         run: npm publish --access public
