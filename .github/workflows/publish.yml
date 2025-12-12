@@ -21,8 +21,6 @@ jobs:
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
-          always-auth: true
 
       - name: Publish
-        run: |
-          npm publish --provenance --access public
+        run: npm publish --provenance --access public
