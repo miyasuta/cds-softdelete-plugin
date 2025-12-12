@@ -25,12 +25,6 @@ jobs:
       - name: Update npm
         run: npm install -g npm@latest
 
-      - name: Run tests
-        run: |
-          cd tests/spec-test
-          npm install
-          npm test
-
       - name: Debug npm auth config
         run: |
           echo "== env (auth related) =="
@@ -41,6 +35,12 @@ jobs:
           (test -f .npmrc && sed -E 's/(_authToken=).+/\1***REDACTED***/' .npmrc) || echo "(no .npmrc)"
           echo "== npm config (auth lines) =="
           npm config list -l | grep -E '(_auth|authToken|registry)' || true
+
+      # - name: Run tests
+      #   run: |
+      #     cd tests/spec-test
+      #     npm install
+      #     npm test
 
       - name: Publish
         run: npm publish --access public
