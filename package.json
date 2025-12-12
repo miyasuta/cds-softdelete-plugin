@@ -26,7 +26,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/miyasuta/cds-softdelete-plugin"
+    "url": "git+https://github.com/miyasuta/cds-softdelete-plugin.git"
   },
   "bugs": {
     "url": "https://github.com/miyasuta/cds-softdelete-plugin/issues"

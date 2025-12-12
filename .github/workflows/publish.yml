@@ -23,11 +23,6 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           always-auth: true
 
-      - name: Install
-        run: npm ci
-
       - name: Publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          npm publish --provenance
+          npm publish --provenance --access public
