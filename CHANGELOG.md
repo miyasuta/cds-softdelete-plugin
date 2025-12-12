@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2025-12-13
+
+### Added
+- Physical deletion test case (DEL-09) to verify entities without @softdelete.enabled are physically deleted
+
 ## [1.0.1] - 2025-12-12
 
 ### Added
@@ -109,6 +114,7 @@ This is the first stable release of cds-softdelete-plugin. The plugin is conside
 - Initial release with basic soft delete functionality
 - Validation for entities with `@softdelete.enabled`
 
+[1.0.2]: https://github.com/miyasuta/cds-softdelete-plugin/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/miyasuta/cds-softdelete-plugin/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/miyasuta/cds-softdelete-plugin/compare/v0.3.5...v1.0.0
 [0.3.5]: https://github.com/miyasuta/cds-softdelete-plugin/compare/v0.3.4...v0.3.5
